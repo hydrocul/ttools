@@ -1,0 +1,24 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use utf8;
+
+# TODO 開始番号だとかのオプション
+
+my $format = shift;
+my $num = shift;
+
+if(!defined($format)){
+    $format = "%d";
+}
+if(!defined($num)){
+    $num = 0;
+}
+
+while(<>){
+    print sprintf($format, $num) . "\t";
+    print $_;
+    $num++;
+}
+
