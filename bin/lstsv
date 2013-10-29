@@ -1,4 +1,7 @@
 #!/bin/sh
 
-ruby `dirname $0`/../lib/lstsv.rb "$@" | less -XSR
+ttools_dir=`readlink -f $0`
+ttools_dir=`dirname $ttools_dir`
+ttools_dir=`dirname $ttools_dir`
+ruby $ttools_dir/lib/lstsv.rb "$@" | less -XSR
 
