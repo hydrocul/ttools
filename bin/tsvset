@@ -1,0 +1,25 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use utf8;
+
+my $row = shift;
+my $col = shift;
+my $value = shift;
+
+my $num = 1;
+while(<>){
+    my $line = $_;
+    if ($num == $row) {
+        my @lines = split("\t", $line);
+        if ($col == @lines) {
+            $value = $value . "\n";
+        }
+        $lines[$col - 1] = $value;
+        $line = join("\t", @lines);
+    }
+    print $line;
+    $num++;
+}
+
