@@ -1,0 +1,120 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+my @htmlSingleElements = qw/area base br button embed hr img input link meta object param wbr/;
+
+sub trim {
+    my ($str) = @_;
+    $str =~ s/^\s*(.*?)\s*$/$1/;
+    $str;
+}
+
+sub decode_html {
+    my ($str) = @_;
+    $str =~ s/&gt;/>/g;
+    $str =~ s/&lt;/</g;
+    $str =~ s/&amp;/&/g;
+    $str =~ s/&quot;/"/g;
+    $str =~ s/&apos;/'"/g;
+    $str;
+}
+
+sub print_attr {
+    my ($h2, $line) = @_;
+    $line = trim($line);
+    while (length($line) > 0) {
+        if ($line =~ /\A([-_a-zA-Z0-9]+)="(.*?)"(.*)\z/) {
+            my $name = $1;
+            my $value = decode_html($2);
+            $line = $3;
+            print "/$h2/\@$name\t$value\n";
+        } else {
+            $line = "";
+        }
+        $line = trim($line);
+    }
+}
+
+my $first = 1;
+my @labels = ();
+
+my $line = join('', <STDIN>);
+
+    $line = trim($line);
+    while (length($line) > 0) {
+        my $h;
+        if (@labels) {
+            $h = $labels[0];
+        } else {
+            $h = ["", "", 0];
+        }
+        if ($first && $line =~ /\A<\?xml.*?>(.*)\z/is) {
+            $line = $1;
+        } elsif ($first && $line =~ /\A<!DOCTYPE.*?>(.*)\z/is) {
+            $line = $1;
+        } elsif ($line =~ /\A<!--(.*?)-->(.*)\z/s) {
+            my @text = split(/\n/, $1);
+            $line = $2;
+            foreach my $text (@text) {
+                $text = trim($text);
+                if (length($text) > 0) {
+                     print "/$h->[1]/comment()\t$text\n";
+                     $h->[2] = 1;
+                }
+            }
+        } elsif ($line =~ /\A<([^ \t\r\n\/>]+)([^>]*?)\/[ \t\r\n]*>(.*)\z/s) { # 単独の要素
+            my $name = lc($1);
+            my $attr_str = $2;
+            $line = $3;
+            my $name2 = $1;
+            print_attr("$h->[1]/$name2", $attr_str);
+            print "/$h->[1]/$name2\t\n";
+        } elsif ($line =~ /\A<([^ \t\r\n\/>]+)(.*?)>(.*)\z/s) { # 開きタグ
+            my $name = lc($1);
+            my $attr_str = $2;
+            $line = $3;
+            my $name2 = $name;
+            $h->[2] = 1;
+            print_attr("$h->[1]/$name2", $attr_str);
+            if (grep {$_ eq $name} @htmlSingleElements) {
+                print "/$h->[1]/$name2\t\n";
+            } else {
+                unshift(@labels, [$name, "$h->[1]/$name2"]);
+            }
+        } elsif ($line =~ /\A<\/([^ \t\r\n\/>]+).*?>(.*)\z/s) { # 閉じタグ
+            my $name = lc($1);
+            $line = $2;
+            if ($name eq $h->[0]) {
+                unless ($h->[2]) {
+                    print "/$h->[1]\t\n";
+                }
+                shift(@labels);
+            }
+        } elsif ($line =~ /\A(.+?)(<.*)\z/s) {
+            my @text = split(/\n/, decode_html($1));
+            $line = $2;
+            foreach my $text (@text) {
+                $text = trim($text);
+                if (length($text) > 0) {
+                    print "/$h->[1]/text()\t$text\n";
+                    $h->[2] = 1;
+                }
+            }
+        } else {
+            my @text = split(/\n/, decode_html($line));
+            $line = "";
+            foreach my $text (@text) {
+                $text = trim($text);
+                if (length($text) > 0) {
+                    print "/$h->[1]/text()\t$text\n";
+                    $h->[2] = 1;
+                }
+            }
+        }
+        $first = 0;
+        $line = trim($line);
+    }
+
+

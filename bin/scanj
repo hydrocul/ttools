@@ -1,0 +1,25 @@
+#!/usr/bin/env php
+<?
+
+function print_data($head, $data) {
+    if (is_array($data)) {
+        foreach ($data as $key => $value) {
+            $key = str_replace("/", "_", $key);
+            $key = str_replace("\t", " ", $key);
+            print_data ("$head/$key", $value);
+        }
+    } else {
+        $data = explode("\n", $data);
+        foreach ($data as $l) {
+            $l = trim($l);
+            echo "$head\t$l\n";
+        }
+    }
+}
+
+$stdin = file_get_contents('php://stdin');
+
+$data = json_decode($stdin, true);
+
+print_data("", $data);
+
