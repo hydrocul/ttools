@@ -50,10 +50,13 @@ my $line = join('', <STDIN>);
         } else {
             $h = ["", "", 0];
         }
+        my $otherFlag = 1;
         if ($first && $line =~ /\A<\?xml.*?>(.*)\z/is) {
             $line = $1;
+            $otherFlag = 0;
         } elsif ($first && $line =~ /\A<!DOCTYPE.*?>(.*)\z/is) {
             $line = $1;
+            $otherFlag = 0;
         } elsif ($line =~ /\A<!--(.*?)-->(.*)\z/s) {
             my @text = split(/\n/, $1);
             $line = $2;
@@ -64,33 +67,41 @@ my $line = join('', <STDIN>);
                      $h->[2] = 1;
                 }
             }
+            $otherFlag = 0;
         } elsif ($line =~ /\A<([^ \t\r\n\/>]+)([^>]*?)\/[ \t\r\n]*>(.*)\z/s) { # 単独の要素
-            my $name = lc($1);
-            my $attr_str = $2;
-            $line = $3;
-            my $name2 = $1;
-            print_attr("$h->[1]/$name2", $attr_str);
-            print "/$h->[1]/$name2\t\n";
-        } elsif ($line =~ /\A<([^ \t\r\n\/>]+)(.*?)>(.*)\z/s) { # 開きタグ
-            my $name = lc($1);
-            my $attr_str = $2;
-            $line = $3;
-            my $name2 = $name;
-            $h->[2] = 1;
-            print_attr("$h->[1]/$name2", $attr_str);
-            if (grep {$_ eq $name} @htmlSingleElements) {
+            if ($h->[0] ne 'script') {
+                my $name = lc($1);
+                my $attr_str = $2;
+                $line = $3;
+                my $name2 = $1;
+                print_attr("$h->[1]/$name2", $attr_str);
                 print "/$h->[1]/$name2\t\n";
-            } else {
-                unshift(@labels, [$name, "$h->[1]/$name2"]);
+                $otherFlag = 0;
+            }
+        } elsif ($line =~ /\A<([^ \t\r\n\/>]+)(.*?)>(.*)\z/s) { # 開きタグ
+            if ($h->[0] ne 'script') {
+                my $name = lc($1);
+                my $attr_str = $2;
+                $line = $3;
+                my $name2 = $name;
+                $h->[2] = 1;
+                print_attr("$h->[1]/$name2", $attr_str);
+                if (grep {$_ eq $name} @htmlSingleElements) {
+                    print "/$h->[1]/$name2\t\n";
+                } else {
+                    unshift(@labels, [$name, "$h->[1]/$name2"]);
+                }
+                $otherFlag = 0;
             }
         } elsif ($line =~ /\A<\/([^ \t\r\n\/>]+).*?>(.*)\z/s) { # 閉じタグ
             my $name = lc($1);
-            $line = $2;
             if ($name eq $h->[0]) {
+                $line = $2;
                 unless ($h->[2]) {
                     print "/$h->[1]\t\n";
                 }
                 shift(@labels);
+                $otherFlag = 0;
             }
         } elsif ($line =~ /\A(.+?)(<.*)\z/s) {
             my @text = split(/\n/, decode_html($1));
@@ -102,7 +113,9 @@ my $line = join('', <STDIN>);
                     $h->[2] = 1;
                 }
             }
-        } else {
+            $otherFlag = 0;
+        }
+        if ($otherFlag) {
             my @text = split(/\n/, decode_html($line));
             $line = "";
             foreach my $text (@text) {
