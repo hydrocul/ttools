@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+
+c1 = 'abcdefghkmnprstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ2345678'
+c2 = '1234567890'
+
+ret = ''
+1.upto(8) do
+  1.upto(8) do
+    ret = ret + c1[rand(c1.length)]
+  end
+  ret = ret + "\n"
+end
+
+1.upto(8) do
+  1.upto(8) do
+    ret = ret + c2[rand(c2.length)]
+  end
+  ret = ret + "\n"
+end
+
+puts ret

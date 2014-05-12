@@ -1,0 +1,23 @@
+#!/bin/sh
+
+LAMBDA=
+while [ -n "$1" ]; do
+    if [ -z "$LAMBDA" ]; then
+        LAMBDA=$1
+    fi
+    shift
+done
+if [ -z "$LAMBDA" ]; then
+    LAMBDA=1
+fi
+
+python2 -c "
+
+import numpy as np
+
+while True:
+    for d in np.random.poisson($LAMBDA, 100):
+        print(str(d))
+
+" 2>/dev/null
+
