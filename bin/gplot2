@@ -1,0 +1,30 @@
+#!/bin/sh
+
+WORKING_DIR=`mktemp -d`
+trap "rm -rf $WORKING_DIR 2>/dev/null" 0 1 2 3 15
+
+cat > $WORKING_DIR/data.txt
+
+while [ -n "$1" ]; do
+    if [ -n "$SOURCE" ]; then
+        SOURCE="$SOURCE\n$1"
+    else
+        SOURCE="$1"
+    fi
+    shift
+done
+
+SOURCE=`echo "$SOURCE" | sed "s!<IN>!\"$WORKING_DIR/data.txt\"!g"`
+
+cat <<EOF > $WORKING_DIR/main.gnuplot
+
+set terminal png interlace
+set output "$WORKING_DIR/chart.png"
+$SOURCE
+
+EOF
+
+gnuplot $WORKING_DIR/main.gnuplot
+
+cat $WORKING_DIR/chart.png 2>/dev/null
+
