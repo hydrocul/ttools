@@ -19,6 +19,11 @@ function print_data($head, $data) {
 
 $stdin = file_get_contents('php://stdin');
 
+// JSONPの場合は関数呼び出しを削除してJSONに修正
+if (preg_match('/\A\s*[.0-9A-Za-z]+\((.+)\);?\s*\Z/', $stdin, $matches)) {
+    $stdin = $matches[1];
+}
+
 $data = json_decode($stdin, true);
 
 print_data("", $data);
