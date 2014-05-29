@@ -5,6 +5,14 @@ use warnings;
 
 my @htmlSingleElements = qw/area base br button embed hr img input link meta object param wbr/;
 
+my $delimiter = '/';
+
+foreach (@ARGV) {
+    if ($_ =~ /\A-p(.)/) {
+        $delimiter = $1;
+    }
+}
+
 sub trim {
     my ($str) = @_;
     $str =~ s/^\s*(.*?)\s*$/$1/;
@@ -27,9 +35,9 @@ sub print_attr {
     while (length($line) > 0) {
         if ($line =~ /\A([-_a-zA-Z0-9]+)="(.*?)"(.*)\z/) {
             my $name = $1;
-            my $value = decode_html($2);
+            my $value = trim(decode_html($2));
             $line = $3;
-            print "/$h2/\@$name\t$value\n";
+            print "$delimiter$h2$delimiter\@$name\t$value\n";
         } else {
             $line = "";
         }
@@ -63,7 +71,7 @@ my $line = join('', <STDIN>);
             foreach my $text (@text) {
                 $text = trim($text);
                 if (length($text) > 0) {
-                     print "/$h->[1]/comment()\t$text\n";
+                     print "$delimiter$h->[1]${delimiter}comment()\t$text\n";
                      $h->[2] = 1;
                 }
             }
@@ -74,8 +82,8 @@ my $line = join('', <STDIN>);
                 my $attr_str = $2;
                 $line = $3;
                 my $name2 = $1;
-                print_attr("$h->[1]/$name2", $attr_str);
-                print "/$h->[1]/$name2\t\n";
+                print_attr("$h->[1]$delimiter$name2", $attr_str);
+                print "$delimiter$h->[1]$delimiter$name2\t\n";
                 $otherFlag = 0;
             }
         } elsif ($line =~ /\A<([^ \t\r\n\/>]+)(.*?)>(.*)\z/s) { # 開きタグ
@@ -85,11 +93,11 @@ my $line = join('', <STDIN>);
                 $line = $3;
                 my $name2 = $name;
                 $h->[2] = 1;
-                print_attr("$h->[1]/$name2", $attr_str);
+                print_attr("$h->[1]$delimiter$name2", $attr_str);
                 if (grep {$_ eq $name} @htmlSingleElements) {
-                    print "/$h->[1]/$name2\t\n";
+                    print "$delimiter$h->[1]$delimiter$name2\t\n";
                 } else {
-                    unshift(@labels, [$name, "$h->[1]/$name2"]);
+                    unshift(@labels, [$name, "$h->[1]$delimiter$name2"]);
                 }
                 $otherFlag = 0;
             }
@@ -98,7 +106,7 @@ my $line = join('', <STDIN>);
             if ($name eq $h->[0]) {
                 $line = $2;
                 unless ($h->[2]) {
-                    print "/$h->[1]\t\n";
+                    print "$delimiter$h->[1]\t\n";
                 }
                 shift(@labels);
                 $otherFlag = 0;
@@ -109,7 +117,7 @@ my $line = join('', <STDIN>);
             foreach my $text (@text) {
                 $text = trim($text);
                 if (length($text) > 0) {
-                    print "/$h->[1]/text()\t$text\n";
+                    print "$delimiter$h->[1]${delimiter}text()\t$text\n";
                     $h->[2] = 1;
                 }
             }
@@ -121,7 +129,7 @@ my $line = join('', <STDIN>);
             foreach my $text (@text) {
                 $text = trim($text);
                 if (length($text) > 0) {
-                    print "/$h->[1]/text()\t$text\n";
+                    print "$delimiter$h->[1]${delimiter}text()\t$text\n";
                     $h->[2] = 1;
                 }
             }
