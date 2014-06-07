@@ -1,0 +1,173 @@
+#!/bin/sh
+
+# 一時ディレクトリを作成した上でスクリプトを実行するためのユーティリティコマンド。
+# 
+# 例
+#     exec tempdir $0 "$@"
+#     exec tempdir --hard $0 "$@"
+#     exec tempdir --hard --soft $0 "$@"
+# 
+# tempdir より前に cd でカレントディレクトリを変えてはいけない
+# tempdir より後ろでは $0 は使えない
+
+while [ $# -gt 0 ]; do
+    if [ "$1" = "--hard" ]; then
+        HARD=1
+        shift
+    elif [ "$1" = "--soft" ]; then
+        SOFT=1
+        shift
+    elif [ "$1" = "--build" ]; then
+        BUILD=1
+        shift
+    elif [ "$1" = "--build-cross" ]; then
+        BUILD=1
+        BUILD_CROSS=1
+        shift
+    else
+        break
+    fi
+done
+
+if [ -n "$BUILD" ]; then
+
+    FINALLY_SOFT='print "rm -rf \$WORKING_DIR 2>/dev/null\n";'
+
+    if [ -n "$BUILD_CROSS" ]; then
+        if [ -z "$HARD" ]; then
+            MKTEMP="$MKTEMP"'print "UID=`id -u`\n";'
+            MKTEMP="$MKTEMP"'print "if [ -d /run/user/\$UID ]; then\n";'
+            MKTEMP="$MKTEMP"'print "    export WORKING_DIR=\`mktemp -d -p /run/user/\$UID\`\n";'
+            MKTEMP="$MKTEMP"'print "elif [ -d /dev/shm ]; then\n";'
+            MKTEMP="$MKTEMP"'print "    export WORKING_DIR=\`mktemp -d -p /dev/shm\`\n";'
+            MKTEMP="$MKTEMP"'print "else\n";'
+            MKTEMP="$MKTEMP"'print "    export WORKING_DIR=\`mktemp -d\`\n";'
+            MKTEMP="$MKTEMP"'print "fi\n";'
+        elif [ -z "$SOFT" ]; then
+            MKTEMP="$MKTEMP"'print "export WORKING_DIR=\`mktemp -d\`\n";'
+        else
+            MKTEMP="$MKTEMP"'print "UID=`id -u`\n";'
+            MKTEMP="$MKTEMP"'print "if [ -d /run/user/\$UID ]; then\n";'
+            MKTEMP="$MKTEMP"'print "    export WORKING_DIR=\`mktemp -d -p /run/user/\$UID\`\n";'
+            MKTEMP="$MKTEMP"'print "elif [ -d /dev/shm ]; then\n";'
+            MKTEMP="$MKTEMP"'print "    export WORKING_DIR=\`mktemp -d -p /dev/shm\`\n";'
+            MKTEMP="$MKTEMP"'print "else\n";'
+            MKTEMP="$MKTEMP"'print "    export WORKING_DIR=\`mktemp -d\`\n";'
+            MKTEMP="$MKTEMP"'print "fi\n";'
+            MKTEMP="$MKTEMP"'print "export HARD_WORKING_DIR=\`mktemp -d\`\n";'
+            FINALLY_HARD='print "rm -rf \$HARD_WORKING_DIR 2>/dev/null\n";'
+        fi
+    else
+        # 自ホストで実行する前提のビルド
+        if [ -z "$HARD" ]; then
+            # --hard なし
+            UID=`id -u`
+            if [ -d /run/user/$UID ]; then
+                MKTEMP='print "export WORKING_DIR=\`mktemp -d -p /run/user/'$UID'\`\n";'
+            elif [ -d /dev/shm ]; then
+                MKTEMP='print "export WORKING_DIR=\`mktemp -d -p /dev/shm\`\n";'
+            else
+                MKTEMP='print "export WORKING_DIR=\`mktemp -d\`\n";'
+            fi
+        elif [ -z "$SOFT" ]; then
+            # --hard あり --soft なし
+            MKTEMP='print "export WORKING_DIR=\`mktemp -d\`\n";'
+        else
+            # --hard あり --soft あり
+            UID=`id -u`
+            if [ -d /run/user/$UID ]; then
+                MKTEMP='print "export WORKING_DIR=\`mktemp -d -p /run/user/'$UID'\`\n";'
+            elif [ -d /dev/shm ]; then
+                MKTEMP='print "export WORKING_DIR=\`mktemp -d -p /dev/shm\`\n";'
+            else
+                MKTEMP='print "export WORKING_DIR=\`mktemp -d\`\n";'
+            fi
+            MKTEMP="$MKTEMP"'print "export HARD_WORKING_DIR=\`mktemp -d\`\n";'
+            FINALLY_HARD='print "rm -rf \$HARD_WORKING_DIR 2>/dev/null\n";'
+        fi
+    fi
+
+    perl -e '
+        $line = <STDIN>;
+        print $line;
+        print "\n";
+        '"$MKTEMP"'
+        print "(\n";
+        $f = 0;
+        while (<STDIN>) {
+            if ($f eq 0 && /^\s*exec\s+.*tempdir\s+/) {
+                print "# $_";
+                $f = 1;
+            } else {
+                print;
+            }
+        }
+        print ")\n";
+        print "RET=\$?\n";
+        '"$FINALLY_SOFT"'
+        '"$FINALLY_HARD"'
+        print "exit \$RET\n";
+    '
+
+else
+
+    if [ $# -eq 0 ]; then
+        exit 1
+    fi
+
+    SCRIPT_PATH=$1
+    shift
+
+    SCRIPT_NAME=`basename $SCRIPT_PATH`
+
+    if [ -z "$HARD" ]; then
+        # --hard なし
+        UID=`id -u`
+        if [ -d /run/user/$UID ]; then
+            export WORKING_DIR=`mktemp -d -p /run/user/$UID`
+        elif [ -d /dev/shm ]; then
+            export WORKING_DIR=`mktemp -d -p /dev/shm`
+        else
+            export WORKING_DIR=`mktemp -d`
+        fi
+    elif [ -z "$SOFT" ]; then
+        # --hard あり --soft なし
+        export WORKING_DIR=`mktemp -d`
+    else
+        # --hard あり --soft あり
+        UID=`id -u`
+        if [ -d /run/user/$UID ]; then
+            export WORKING_DIR=`mktemp -d -p /run/user/$UID`
+        elif [ -d /dev/shm ]; then
+            export WORKING_DIR=`mktemp -d -p /dev/shm`
+        else
+            export WORKING_DIR=`mktemp -d`
+        fi
+        export HARD_WORKING_DIR=`mktemp -d`
+    fi
+
+    cat $SCRIPT_PATH | perl -nle '
+        BEGIN {
+            $f = 0;
+        }
+        if ($f eq 0 && /^\s*exec\s+.*tempdir\s+/) {
+            print "# $_";
+            $f = 1;
+        } else {
+            print;
+        }
+    ' > $WORKING_DIR/$SCRIPT_NAME
+
+    sh $WORKING_DIR/$SCRIPT_NAME "$@"
+
+    RET=$?
+
+    rm -rf $WORKING_DIR 2>/dev/null
+    if [ -n "$HARD_WORKING_DIR" ]; then
+        rm -rf $HARD_WORKING_DIR 2>/dev/null
+    fi
+
+    exit $RET
+
+fi
+
