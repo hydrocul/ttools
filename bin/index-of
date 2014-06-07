@@ -1,0 +1,22 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+my $TARGET_LINE = '';
+if (@ARGV >= 1) {
+    $TARGET_LINE = $ARGV[0];
+}
+
+my $lineno = 1;
+while (my $line = <STDIN>) {
+    $line =~ s/\A(.*)\n\z/$1/;
+    if ($line eq $TARGET_LINE) {
+        print "$lineno\n";
+        exit(0);
+    }
+    $lineno++;
+}
+
+exit(1);
+
