@@ -10,7 +10,7 @@ copy_cmd()
     NAME=$1
     if [ ! -e bin/$NAME -o src/$NAME -nt bin/$NAME ]; then
         echo "build $NAME"
-        if grep '^##tempdir' src/$NAME >/dev/null; then
+        if grep '^\s*##tempdir' src/$NAME >/dev/null; then
             cat src/$NAME | bin/tempdir --build-cross > tmp/$NAME
             SRC=tmp/$NAME
         else
@@ -19,7 +19,7 @@ copy_cmd()
         cat $SRC | perl -e '
             sub process_line {
                 ($line) = @_;
-                if ($line =~ /^##include\s+([-_.a-zA-Z0-9]+)\s*$/) {
+                if ($line =~ /^\s*##include\s+([-_.a-zA-Z0-9]+)\s*$/) {
                     $fname = $1;
                     $hash = `cat src/$fname | md5sum | cut -b-32`;
                     $hash =~ s/^\s*(.*?)\s*$/$1/;
@@ -56,4 +56,6 @@ copy_cmd ssv2tsv
 copy_cmd tsvaddnum
 copy_cmd tsvset
 copy_cmd trimhtml
+
+rm -r tmp
 
