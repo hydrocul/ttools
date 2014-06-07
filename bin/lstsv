@@ -3,5 +3,10 @@
 ttools_dir=`readlink -f $0`
 ttools_dir=`dirname $ttools_dir`
 ttools_dir=`dirname $ttools_dir`
-ruby $ttools_dir/lib/lstsv.rb "$@" | less -XSR
+
+if [ -p /dev/stdout ]; then
+    ruby $ttools_dir/lib/lstsv.rb "$@"
+else
+    ruby $ttools_dir/lib/lstsv.rb "$@" | less -XSR
+fi
 
