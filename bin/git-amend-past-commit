@@ -1,0 +1,78 @@
+#!/bin/sh
+
+while [ -n "$1" ]; do
+    if [ "$1" = '--dry-run' ]; then
+        DRY_RUN=1
+    elif [ "$1" = '--append' ]; then
+        APPEND=1
+    elif [ -z "$BRANCH" ]; then
+        BRANCH="$1"
+    elif [ -z "$COMMIT1" ]; then
+        COMMIT1="$1"
+    elif [ -z "$COMMIT2" ]; then
+        COMMIT2="$1"
+    else
+        echo "不明なパラメータがあります" >&2
+        exit 1
+    fi
+    shift
+done
+
+if [ -z "$BRANCH" -o -z "$COMMIT1" -o -z "$COMMIT2" ]; then
+    exit 1
+fi
+
+if [ "`git status -s | wc -l`" != 0 ]; then
+    echo "変更されているファイルがあると実行できません" >&2
+    exit 1
+fi
+
+WORKING_DIR=`mktemp -d`
+trap "rm -rf $WORKING_DIR 2>/dev/null" 0 1 2 3 15
+
+COMMIT1_SUBJECT=`git log $COMMIT1~1..$COMMIT1 --pretty=format:'%s'`
+COMMIT2_SUBJECT=`git log $COMMIT2~1..$COMMIT2 --pretty=format:'%s'`
+
+COMMIT1_HASH=`git log $COMMIT1~1..$COMMIT1 --pretty=format:'%h'`
+COMMIT2_HASH=`git log $COMMIT2~1..$COMMIT2 --pretty=format:'%h'`
+COMMIT2_PREV_HASH=`git log $COMMIT2~2..$COMMIT2~1 --pretty=format:'%h'`
+BRANCH_HASH=`git log $BRANCH~1..$BRANCH --pretty=format:'%h'`
+
+if [ -n "$APPEND" ]; then
+    COMMIT_OPT="--reset-author"
+fi
+
+(
+    if echo $COMMIT2_SUBJECT | perl -nle '/\Aamend/ or exit(1)'; then
+        echo "# commit1:       $COMMIT1_SUBJECT"
+    elif echo $COMMIT2_SUBJECT | perl -nle '/\Aappend/ or exit(1)'; then
+        echo "# commit1:        $COMMIT1_SUBJECT"
+    else
+        echo "# commit1: $COMMIT1_SUBJECT"
+    fi
+    echo "# commit2: $COMMIT2_SUBJECT"
+    echo "git checkout $BRANCH || exit 1"
+    echo "git checkout -b $BRANCH-rtools-tmp $COMMIT1 || exit 1"
+    echo 'cat <<\EOF | patch -p1 || exit 1'
+    git diff "$COMMIT2~1..$COMMIT2"
+    echo 'EOF'
+    git diff --name-status "$COMMIT2~1..$COMMIT2" | cut -b3- | perl -nle 'print "git add -A $_ || exit 1"'
+    echo "git commit --amend $COMMIT_OPT -m '$COMMIT1_SUBJECT' || exit 1"
+    if [ "$COMMIT1_HASH" != "$COMMIT2_PREV_HASH" ]; then
+        ( git log "$COMMIT1..$COMMIT2~1" --pretty=format:"%h"; echo ) | tac | perl -nle 'print "echo \"git cherry-pick $_\"; git cherry-pick $_ || exit 1"'
+    fi
+    if [ "$COMMIT2_HASH" != "$BRANCH_HASH" ]; then
+        ( git log "$COMMIT2..$BRANCH" --pretty=format:"%h"; echo ) | tac | perl -nle 'print "echo \"git cherry-pick $_\"; git cherry-pick $_ || exit 1"'
+    fi
+    echo "test \`git diff $BRANCH-rtools-tmp..$BRANCH | wc -l\` = 0 || exit 1"
+    echo "git checkout $BRANCH || exit"
+    echo "git reset --hard $BRANCH-rtools-tmp || exit"
+    echo "git branch -d $BRANCH-rtools-tmp || exit"
+) > $WORKING_DIR/script.sh
+
+if [ -n "$DRY_RUN" ]; then
+    cat $WORKING_DIR/script.sh
+else
+    sh $WORKING_DIR/script.sh
+fi
+
