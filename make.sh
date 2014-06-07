@@ -42,6 +42,7 @@ copy_cmd tempdir
 
 copy_cmd csv2tsv
 copy_cmd git-amend-past-commit
+copy_cmd gitl
 copy_cmd gplot2
 copy_cmd histogram
 copy_cmd index-of

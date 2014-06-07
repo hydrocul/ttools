@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ $# -gt 0 ]; then
+
+    git log --graph --date-order --pretty=format:"%Cblue%d %Cgreen%ai %Cblue%ae %Cgreen%h %Creset%s" "$@"
+
+else
+
+    git log --graph --date-order --branches --tags --remotes --pretty=format:"%Cblue%d %Cgreen%ai %Cblue%ae %Cgreen%h %Creset %s"
+
+fi
