@@ -1,12 +1,10 @@
 #!/bin/sh
 
-ttools_dir=`readlink -f $0`
-ttools_dir=`dirname $ttools_dir`
-ttools_dir=`dirname $ttools_dir`
+##file lstsv.rb
 
 if [ -p /dev/stdout ]; then
-    ruby $ttools_dir/lib/lstsv.rb "$@"
+    ruby $WORKING_DIR/lstsv.rb "$@"
 else
-    ruby $ttools_dir/lib/lstsv.rb "$@" | less -XSR
+    ruby $WORKING_DIR/lstsv.rb "$@" | less -XSR
 fi
 

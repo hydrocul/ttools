@@ -1,7 +1,6 @@
 #!/bin/sh
 
-ttools_dir=`readlink -f $0`
-ttools_dir=`dirname $ttools_dir`
-ttools_dir=`dirname $ttools_dir`
-ruby $ttools_dir/lib/ssv2tsv.rb "$@"
+##file ssv2tsv.rb
+
+ruby $WORKING_DIR/ssv2tsv.rb "$@"
 
