@@ -10,10 +10,17 @@ copy_cmd()
     NAME=$1
     if [ ! -e bin/$NAME -o src/$NAME -nt bin/$NAME ]; then
         echo "build $NAME"
-        perl src/ttr --build --cross --include src src/$NAME > bin/$NAME || exit 1
-        chmod -v 755 bin/$NAME || exit 1
+        if [ "$NAME" = "ttr" ]; then
+            cp src/$NAME bin/$NAME || exit 1
+            chmod -v 755 bin/$NAME || exit 1
+        else
+            perl src/ttr --build --cross --include src src/$NAME > bin/$NAME || exit 1
+            chmod -v 755 bin/$NAME || exit 1
+        fi
     fi
 }
+
+copy_cmd ttr
 
 copy_cmd csv2tsv
 copy_cmd git-amend-past-commit
