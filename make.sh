@@ -24,6 +24,7 @@ copy_cmd ttr
 
 copy_cmd csv2tsv
 copy_cmd git-amend-past-commit
+copy_cmd gitf
 copy_cmd gitl
 copy_cmd gplot2
 copy_cmd histogram

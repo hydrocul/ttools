@@ -1,0 +1,15 @@
+#!/bin/sh
+
+branch=$1
+shift
+if [ -t 1 ]; then
+    (
+        git diff --color --name-status $branch~..$branch
+        git diff --color $branch~..$branch "$@"
+    ) | less -X -R -S
+else
+    git diff --name-status $branch~..$branch
+    git diff $branch~..$branch "$@"
+fi
+
+
