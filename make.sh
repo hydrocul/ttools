@@ -15,8 +15,6 @@ copy_cmd()
     fi
 }
 
-copy_cmd tempdir
-
 copy_cmd csv2tsv
 copy_cmd git-amend-past-commit
 copy_cmd gitl
