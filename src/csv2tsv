@@ -1,8 +1,6 @@
 #!/bin/sh
 
-##tempdir
-
-##include csv2tsv.rb
+##file csv2tsv.rb
 
 ruby $WORKING_DIR/csv2tsv.rb "$@"
 

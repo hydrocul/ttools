@@ -3,37 +3,14 @@
 cd `dirname $0`
 
 mkdir -pv bin || exit 1
-mkdir -pv tmp || exit 1
+mkdir -p tmp || exit 1
 
 copy_cmd()
 {
     NAME=$1
     if [ ! -e bin/$NAME -o src/$NAME -nt bin/$NAME ]; then
         echo "build $NAME"
-        if grep '^\s*##tempdir' src/$NAME >/dev/null; then
-            cat src/$NAME | bin/tempdir --build-cross > tmp/$NAME
-            SRC=tmp/$NAME
-        else
-            SRC=src/$NAME
-        fi
-        cat $SRC | perl -e '
-            sub process_line {
-                ($line) = @_;
-                if ($line =~ /^\s*##include\s+([-_.a-zA-Z0-9]+)\s*$/) {
-                    $fname = $1;
-                    $hash = `cat src/$fname | md5sum | cut -b-32`;
-                    $hash =~ s/^\s*(.*?)\s*$/$1/;
-                    print "cat <<\\$hash > \$WORKING_DIR/$fname\n";
-                    open(FP, "<", "src/$fname") or die "Cannot open bin/$fname";
-                    process_line($_) while (<FP>);
-                    close FP;
-                    print "$hash\n";
-                } else {
-                    print $line;
-                }
-            }
-            process_line($_) while (<STDIN>);
-        ' > bin/$NAME || exit 1
+        perl src/ttr --build --cross --include src src/$NAME > bin/$NAME || exit 1
         chmod -v 755 bin/$NAME || exit 1
     fi
 }

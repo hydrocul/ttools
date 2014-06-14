@@ -1,0 +1,410 @@
+#!/usr/bin/env perl
+
+# 
+# ##working-dir
+# 
+# ##file example.rb
+# 
+# ##file example.txt <<end
+# ...
+# ##end
+# 
+# ##java --jar example.jar example.java
+# 
+# ##java --jar example.jar <<end
+# ...
+# ##end
+# 
+# ##scala --jar example.jar example.scala
+# 
+# ##scala --jar example.jar <<end
+# 
+# ##end
+# 
+
+use strict;
+use warnings;
+use utf8;
+
+use File::Temp qw/tempfile tempdir/;
+use File::Basename qw/basename/;
+use Digest::MD5 qw/md5_hex/;
+
+use Data::Dumper;
+
+my $separator = "################################################################################";
+
+my $include_path = ".";
+my $cross_flag = undef;
+
+my $needs_working_dir = undef;
+my $needs_working_dir_hard = undef;
+
+my $working_dir;
+
+sub process_main_body {
+    my ($lines) = @_;
+    my ($main_body, $attached_files, $dirty) = process_macro_lines($lines);
+    if ($dirty) {
+        my $final_body = assemble_files($main_body, $attached_files);
+        $final_body;
+    } else {
+        $lines;
+    }
+}
+
+sub assemble_files {
+    my ($main_body, $attached_files) = @_;
+    my @result_lines = ();
+    foreach my $file (@$attached_files) {
+        push(@result_lines, $separator);
+        push(@result_lines, @{create_heredoc_sh($file->{'body'}, $file->{'name'})});
+        push(@result_lines, "");
+    }
+    push(@result_lines, $separator);
+    push(@result_lines, @$main_body);
+    if (@$attached_files || $needs_working_dir || $needs_working_dir_hard) {
+        @result_lines = @{wrap_working_dir(\@result_lines,
+                                           ($needs_working_dir || (scalar @$attached_files)),
+                                           $needs_working_dir_hard,
+                                           $cross_flag)};
+    }
+    \@result_lines;
+}
+
+sub create_heredoc_sh {
+    my ($lines, $filename) = @_;
+    my $hash = get_lines_hash($lines);
+    my @result_lines = ();
+    push(@result_lines, "cat <<\\EOF_$hash > \$WORKING_DIR/$filename");
+    push(@result_lines, @$lines);
+    push(@result_lines, "EOF_$hash");
+    \@result_lines;
+}
+
+sub get_lines_hash {
+    my ($lines) = @_;
+    my $body = join("\n", @$lines) . "\n";
+    my $hash = md5_hex($body);
+    $hash;
+}
+
+sub wrap_working_dir {
+    my ($lines, $needs_working_dir, $needs_working_dir_hard, $cross_flag) = @_;
+    my @first_lines = ();
+    my @last_lines = ();
+    if ($needs_working_dir) {
+        if ($cross_flag) {
+            push(@first_lines, "if [ -z \"\$WORKING_DIR\" ]; then");
+            push(@first_lines, "    UID=\`id -u\`");
+            push(@first_lines, "    if [ -d /run/user/\$UID ]; then");
+            push(@first_lines, "        export WORKING_DIR=\`mktemp -d -p /run/user/\$UID\`");
+            push(@first_lines, "    elif [ -d /dev/shm ]; then");
+            push(@first_lines, "        export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
+            push(@first_lines, "    else");
+            push(@first_lines, "        export WORKING_DIR=\`mktemp -d\`");
+            push(@first_lines, "    fi");
+            push(@first_lines, "    RM_WORKING_DIR=1");
+            push(@first_lines, "fi");
+        } else {
+            my $uid = `id -u`;
+            $uid =~ s/\A(.*?)\s*\z/$1/;
+            push(@first_lines, "if [ -z \"\$WORKING_DIR\" ]; then");
+            if (-d "/run/user/$uid") {
+                push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /run/user/$uid\`");
+            } elsif (-d "/dev/shm") {
+                push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
+            } else {
+                push(@first_lines, "    export WORKING_DIR=\`mktemp -d\`");
+            }
+            push(@first_lines, "    RM_WORKING_DIR=1");
+            push(@first_lines, "fi");
+        }
+    }
+    if ($needs_working_dir_hard) {
+        push(@first_lines, "if [ -z \"\$HARD_WORKING_DIR\" ]; then");
+        push(@first_lines, "    export HARD_WORKING_DIR=\`mktemp -d\`");
+        push(@first_lines, "    RM_HARD_WORKING_DIR=1");
+        push(@first_lines, "fi");
+    }
+    push(@first_lines, "(");
+    push(@last_lines, $separator);
+    push(@last_lines, ")");
+    push(@last_lines, "RET=\$?");
+    if ($needs_working_dir_hard) {
+        push(@last_lines, "if [ -n \"\$RM_HARD_WORKING_DIR\" ]; then");
+        push(@last_lines, "    rm -rf \$HARD_WORKING_DIR 2>/dev/null");
+        push(@last_lines, "fi");
+    }
+    if ($needs_working_dir) {
+        push(@last_lines, "if [ -n \"\$RM_WORKING_DIR\" ]; then");
+        push(@last_lines, "    rm -rf \$WORKING_DIR 2>/dev/null");
+        push(@last_lines, "fi");
+    }
+    push(@last_lines, "exit \$RET");
+    [@first_lines, "", @$lines, "", @last_lines];
+}
+
+sub process_macro_lines {
+    my ($lines) = @_;
+    my $rest_lines = $lines;
+    my @result_lines = ();
+    my @attached_files = ();
+    my $dirty = undef;
+    while (@$rest_lines) {
+        my ($new_result_lines, $new_rest_lines, $new_attached_files, $new_dirty) =
+            process_macro_lines_rest($rest_lines);
+        $rest_lines = $new_rest_lines;
+        push(@result_lines, @$new_result_lines);
+        push(@attached_files, @$new_attached_files);
+        $dirty = 1 if ($new_dirty);
+    }
+    @result_lines = @{trim_lines(\@result_lines)};
+    (\@result_lines, \@attached_files, $dirty);
+}
+
+sub process_macro_lines_rest {
+    my ($rest_lines) = @_;
+    my ($line, @rest_lines) = @$rest_lines;
+    my @result_lines = ();
+    my @attached_files = ();
+    my $dirty = undef;
+    if ($line =~ /\A\s*##file\s+(.*)\z/) {
+        my ($args, $heredoc_marker) = parse_args($1);
+        my $fname = $args->[0];
+        if (defined $heredoc_marker) {
+            my ($attached_files, $rest_lines) = process_macro_include_file_heredoc(
+                $fname, $heredoc_marker, \@rest_lines);
+            @attached_files = @$attached_files;
+            @rest_lines = @$rest_lines;
+        } else {
+            @attached_files = @{process_macro_include_file($fname)};
+        }
+        $dirty = 1;
+    } else {
+        push(@result_lines, $line);
+    }
+    (\@result_lines, \@rest_lines, \@attached_files, $dirty);
+}
+
+sub parse_args {
+    my ($arg_str) = @_;
+    my @args = ();
+    my $is_heredoc = 0;
+    my $heredoc_marker = undef;
+    while (length($arg_str) > 0) {
+        if ($is_heredoc && $arg_str =~ /\A([-\/_.a-zA-Z0-9]+)\s*(.*)\z/) {
+            $heredoc_marker = $1;
+            $arg_str = $2;
+            if (length($arg_str) > 0) {
+                die "Cannot parse line: $arg_str\n";
+            }
+        } elsif ($is_heredoc) {
+            die "Cannot parse line: $arg_str\n";
+        } elsif ($arg_str =~ /\A([-\/_.a-zA-Z0-9]+)\s*(.*)\z/) {
+            push(@args, $1);
+            $arg_str = $2;
+        } elsif ($arg_str =~ /\A<<(.*)\z/) {
+            $is_heredoc = 1;
+            $arg_str = $1;
+        } else {
+            die "Cannot parse line: $arg_str\n";
+        }
+    }
+    (\@args, $heredoc_marker);
+}
+
+sub parse_heredoc {
+    my ($rest_lines, $heredoc_marker) = @_;
+    my @result_lines = ();
+    while (@$rest_lines) {
+        my ($line, @rest_lines) = @$rest_lines;
+        $rest_lines = \@rest_lines;
+        if ($line eq $heredoc_marker) {
+            last;
+        }
+        push(@result_lines, $line);
+    }
+    (\@result_lines, $rest_lines);
+}
+
+sub process_macro_include_file {
+    my ($filename) = @_;
+    open(FP, "<", "$include_path/$filename") or die "Cannot open $include_path/$filename\n";
+    my $include_lines = [<FP>];
+    close(FP);
+    $include_lines = remove_end_of_line($include_lines);
+    my ($body, $attached_files, $dirty) = process_macro_lines($include_lines);
+    [{'name' => $filename, 'body' => $body}, @$attached_files];
+}
+
+sub process_macro_include_file_heredoc {
+    my ($filename, $heredoc_marker, $rest_lines) = @_;
+    my ($include_lines, $new_rest_lines) = parse_heredoc($rest_lines, $heredoc_marker);
+    my ($body, $attached_files, $dirty) = process_macro_lines($include_lines);
+    ([{'name' => $filename, 'body' => $body}, @$attached_files], $new_rest_lines);
+}
+
+sub create_working_dir {
+    unless (defined $working_dir) {
+        my $uid = `id -u`;
+        $uid =~ s/\A(.*?)\s*\z/$1/;
+        if (-d "/run/user/$uid") {
+            $working_dir = tempdir(DIR => "/run/user/$uid", CLEANUP => 1);
+        } elsif (-d "/dev/shm") {
+            $working_dir = tempdir(DIR => "/dev/shm", CLEANUP => 1);
+        } else {
+            $working_dir = tempdir(CLEANUP => 1);
+        }
+        $ENV{'WORKING_DIR'} = $working_dir;
+    }
+}
+
+sub remove_end_of_line {
+    my ($lines) = @_;
+    my @result = ();
+    foreach my $line (@$lines) {
+        $line =~ s/\A(.*?)\n\z/$1/;
+        # $line =~ s/\A(.*?)\r\z/$1/;
+        push(@result, $line);
+    }
+    \@result;
+}
+
+sub trim_lines {
+    my ($lines) = @_;
+    my @result_lines = @$lines;
+    while () {
+        last unless (@result_lines);
+        my $l = shift(@result_lines);
+        if ($l ne "") {
+            unshift(@result_lines, $l);
+            last;
+        }
+    }
+    while () {
+        last unless (@result_lines);
+        my $l = pop(@result_lines);
+        if ($l ne "") {
+            push(@result_lines, $l);
+            last;
+        }
+    }
+    \@result_lines;
+}
+
+
+
+my $build_flag = 0;
+my $input_file = "";
+
+while () {
+    last unless (@ARGV);
+    my $arg = shift(@ARGV);
+    if ($arg eq "--include") {
+        if (@ARGV) {
+            $include_path = shift(@ARGV);
+        }
+    } elsif ($arg eq "--build") {
+        $build_flag = 1;
+    } elsif ($arg eq "--cross") {
+        $cross_flag = 1;
+    } elsif ($input_file eq "") {
+        $input_file = $arg;
+    } else {
+        die "Unknown argument: $arg\n";
+    }
+}
+
+$input_file = "-" if ($input_file eq "");
+
+my @input_lines;
+if ($input_file eq "-") {
+    @input_lines = (<STDIN>);
+} else {
+    open(FH, "<", $input_file);
+    @input_lines = (<FH>);
+    close(FH);
+}
+@input_lines = @{remove_end_of_line(\@input_lines)};
+
+my $head_line = shift(@input_lines);
+my $shebang_command = undef;
+if ($head_line =~ /\A#!(\/.+)\z/) {
+    $shebang_command = $1;
+    if ($shebang_command =~ /\A\/[^ ]+sh /) {
+        $shebang_command = undef;
+    } elsif ($shebang_command =~ /\A\/[^ ]+sh\z/) {
+        $shebang_command = undef;
+    } else {
+        unshift(@input_lines, $head_line);
+        $head_line = undef;
+    }
+} else {
+    unshift(@input_lines, $head_line);
+    $head_line = undef;
+}
+
+if ($shebang_command) {
+    if ($input_file ne "-") {
+        my $input_file_escaped = quotemeta($input_file);
+        if ($build_flag) {
+            exec("cat $input_file_escaped");
+        } else {
+            if(-x $input_file) {
+                exec($input_file_escaped);
+            } else {
+                exec("$shebang_command $input_file_escaped");
+            }
+        }
+    } else {
+        if ($build_flag) {
+            print "$_\n" foreach @input_lines;
+            exit(0);
+        } else {
+            create_working_dir();
+            my $script_path = "$working_dir/stdin.sh";
+            my $script_path_escaped = quotemeta($script_path);
+            open(FH, ">", $script_path);
+            print FH "$_\n" foreach (@input_lines);
+            close(FH);
+            exec("$shebang_command $script_path_escaped");
+        }
+    }
+}
+
+my $result = process_main_body(\@input_lines);
+
+if (defined $head_line) {
+    unshift(@$result, $head_line);
+}
+
+if ($build_flag) {
+    print "$_\n" foreach @$result;
+} else {
+    create_working_dir();
+    my $script_name;
+    if ($input_file eq "-") {
+        $script_name = "stdin.sh";
+    } else {
+        $script_name = basename($input_file);
+    }
+    my $script_path = "$working_dir/$script_name";
+    open(FH, ">", $script_path);
+    print FH "$_\n" foreach (@$result);
+    close(FH);
+    my $pid = fork;
+    if ($pid) {
+        wait;
+    } elsif (defined $pid) {
+        exec("sh", $script_path);
+    } else {
+        die;
+    }
+    if ($?) {
+        my $e = $? >> 8;
+        $e = 1 unless ($e);
+        exit $e;
+    }
+}
+
