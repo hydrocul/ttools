@@ -27,7 +27,7 @@ use warnings;
 use utf8;
 
 use File::Temp qw/tempfile tempdir/;
-use File::Basename qw/basename/;
+use File::Basename qw/dirname basename/;
 use Digest::MD5 qw/md5_hex/;
 
 use Data::Dumper;
@@ -76,6 +76,10 @@ sub create_heredoc_sh {
     my ($attached_file) = @_;
     my @result_lines = ();
     my $filename = $attached_file->{'name'};
+    my $dirname = dirname($filename);
+    if ($dirname ne '.') {
+        push(@result_lines, "mkdir -p \$WORKING_DIR/$dirname");
+    }
     if ($attached_file->{'body'}) {
         my $lines = $attached_file->{'body'};
         my $hash = get_lines_hash($lines);
@@ -232,7 +236,7 @@ sub parse_args {
     my $is_heredoc = 0;
     my $heredoc_marker = undef;
     while (length($arg_str) > 0) {
-        if ($is_heredoc && $arg_str =~ /\A([-_.a-zA-Z0-9]+)\s*(.*)\z/) {
+        if ($is_heredoc && $arg_str =~ /\A([-_.a-zA-Z0-9][-_.\/a-zA-Z0-9]*)\s*(.*)\z/) {
             $heredoc_marker = $1;
             $arg_str = $2;
             if (length($arg_str) > 0) {
@@ -240,7 +244,7 @@ sub parse_args {
             }
         } elsif ($is_heredoc) {
             die "Cannot parse line: $arg_str\n";
-        } elsif ($arg_str =~ /\A([-_.a-zA-Z0-9]+)\s*(.*)\z/) {
+        } elsif ($arg_str =~ /\A([-_.\/a-zA-Z0-9]+)\s*(.*)\z/) {
             push(@args, $1);
             $arg_str = $2;
         } elsif ($arg_str =~ /\A<<(.*)\z/) {
