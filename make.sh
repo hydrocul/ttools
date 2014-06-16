@@ -30,11 +30,11 @@ copy_cmd gplot2
 copy_cmd histogram
 copy_cmd index-of
 copy_cmd lstsv
+copy_cmd parj
 copy_cmd random-normal
 copy_cmd random-poisson
 copy_cmd random-str
 copy_cmd random-uniform
-copy_cmd scanj
 copy_cmd scanx
 copy_cmd ssv2tsv
 copy_cmd tsvaddnum
