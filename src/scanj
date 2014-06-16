@@ -1,5 +1,5 @@
 #!/usr/bin/env php
-<?
+<?php
 
 function print_data($head, $data) {
     if (is_array($data)) {
