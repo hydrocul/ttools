@@ -79,7 +79,6 @@ sub create_heredoc_sh {
     if ($attached_file->{'body'}) {
         my $lines = $attached_file->{'body'};
         my $hash = get_lines_hash($lines);
-        my @result_lines = ();
         push(@result_lines, "cat <<\\EOF_$hash > \$WORKING_DIR/$filename");
         push(@result_lines, @$lines);
         push(@result_lines, "EOF_$hash");
