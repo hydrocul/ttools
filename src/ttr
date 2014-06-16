@@ -111,7 +111,9 @@ sub wrap_working_dir {
     if ($needs_working_dir) {
         if ($cross_flag) {
             push(@first_lines, "if [ -z \"\$WORKING_DIR\" ]; then");
-            push(@first_lines, "    UID=\`id -u\`");
+            push(@first_lines, "    if [ -z \"\$UID\" ]; then");
+            push(@first_lines, "        UID=\`id -u\`");
+            push(@first_lines, "    fi");
             push(@first_lines, "    if [ -d /run/user/\$UID ]; then");
             push(@first_lines, "        export WORKING_DIR=\`mktemp -d -p /run/user/\$UID\`");
             push(@first_lines, "    elif [ -d /dev/shm ]; then");
