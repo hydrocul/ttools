@@ -321,10 +321,20 @@ sub process_macro_scala {
     if ($pid) {
         wait;
     } elsif (defined $pid) {
-        exec("$fork_code; scalac $src_path; jar cf ../rt-jars/$jar_fname . 2>/dev/null; rm -r $working_dir/rt-classes");
+        exec("$fork_code; scalac $src_path && jar cf ../rt-jars/$jar_fname . 2>/dev/null");
     } else {
         die;
     }
+
+    if ($? != 0) {
+        my $e = $? >> 8;
+        if (!$e) {
+            $e = 1;
+        }
+        exit $e;
+    }
+
+    `rm -r $working_dir/rt-classes`;
 
     ([{'name' => $jar_fname, 'binary_path' => "$working_dir/rt-jars/$jar_fname"}], $result_rest_lines);
 }
