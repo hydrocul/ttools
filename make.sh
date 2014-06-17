@@ -3,7 +3,6 @@
 cd `dirname $0`
 
 mkdir -pv bin || exit 1
-mkdir -p tmp || exit 1
 
 copy_cmd()
 {
@@ -41,5 +40,4 @@ copy_cmd tsvaddnum
 copy_cmd tsvset
 copy_cmd trimhtml
 
-rm -r tmp
 
