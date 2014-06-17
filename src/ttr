@@ -401,11 +401,15 @@ sub trim_lines {
 my $build_flag = undef;
 my $input_file = "";
 my $embedded_mode = undef;
+my @script_args = ();
+my $script_args_flag = undef;
 
 while () {
     last unless (@ARGV);
     my $arg = shift(@ARGV);
-    if ($arg eq "--include") {
+    if ($script_args_flag) {
+        push(@script_args, $arg);
+    } elsif ($arg eq "--include") {
         if (@ARGV) {
             $include_path = shift(@ARGV);
         }
@@ -417,8 +421,11 @@ while () {
         $embedded_mode = 1;
     } elsif ($input_file eq "") {
         $input_file = $arg;
+    } elsif ($arg eq "--") {
+        $script_args_flag = 1;
     } else {
-        die "Unknown argument: $arg\n";
+        push(@script_args, $arg);
+        $script_args_flag = 1;
     }
 }
 
@@ -525,7 +532,7 @@ if ($build_flag) {
     if ($pid) {
         wait;
     } elsif (defined $pid) {
-        exec("sh", $script_path);
+        exec("sh", $script_path, @script_args);
     } else {
         die;
     }
