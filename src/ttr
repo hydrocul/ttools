@@ -398,8 +398,9 @@ sub trim_lines {
 
 
 
-my $build_flag = 0;
+my $build_flag = undef;
 my $input_file = "";
+my $embedded_mode = undef;
 
 while () {
     last unless (@ARGV);
@@ -412,6 +413,8 @@ while () {
         $build_flag = 1;
     } elsif ($arg eq "--cross") {
         $cross_flag = 1;
+    } elsif ($arg eq "-x") {
+        $embedded_mode = 1;
     } elsif ($input_file eq "") {
         $input_file = $arg;
     } else {
@@ -430,6 +433,28 @@ if ($input_file eq "-") {
     close(FH);
 }
 @input_lines = @{remove_end_of_line(\@input_lines)};
+
+if ($embedded_mode) {
+    my @new_input_lines = ();
+    my $f = 0;
+    my $eof_marker = undef;
+    foreach my $line (@input_lines) {
+        if ($f eq 0) {
+            if ($line =~ /\A\s*#!ttr\s*\z/) {
+                $f = 1;
+            } elsif ($line =~ /\A\s*#!ttr\s+([-_a-zA-Z0-9]+)\s*\z/) {
+                $f = 1;
+                $eof_marker = $1;
+            }
+        } elsif ($f eq 1) {
+            if (defined($eof_marker) && $line =~ ('\A\s*' . quotemeta($eof_marker) . '\s*\z')) {
+                last;
+            }
+            push(@new_input_lines, $line);
+        }
+    }
+    @input_lines = @new_input_lines;
+}
 
 my $head_line = shift(@input_lines);
 my $shebang_command = undef;
