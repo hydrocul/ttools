@@ -56,7 +56,7 @@ function is_list($data) {
 $stdin = file_get_contents('php://stdin');
 
 // JSONPの場合は関数呼び出しを削除してJSONに修正
-if (preg_match('/\A\s*[.0-9A-Za-z]+\((.+)\);?\s*\Z/', $stdin, $matches)) {
+if (preg_match('/\A\s*[_.\[\]\"0-9A-Za-z]+\((.+)\);?\s*\Z/', $stdin, $matches)) {
     $stdin = $matches[1];
 }
 
