@@ -61,6 +61,7 @@ my $line = join('', <STDIN>);
         my $otherFlag = 1;
         if ($first && $line =~ /\A<\?xml.*?>(.*)\z/is) {
             $line = $1;
+            @htmlSingleElements = ();
             $otherFlag = 0;
         } elsif ($first && $line =~ /\A<!DOCTYPE.*?>(.*)\z/is) {
             $line = $1;
