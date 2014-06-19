@@ -1,5 +1,15 @@
 #!/bin/sh
 
+while [ "$#" != 0 ]; do
+    if [ "$1" = '--help' ]; then
+        echo "Usage: trimhtml"
+        exit
+    else
+        echo "Unknown argument: $1" >&2
+        exit 1
+    fi
+done
+
 tr "\t\r\n" "   " |
 sed -E 's/<!--([^-]|-[^-])*-->//g' |
 sed -E 's/> *([^ ])/>\1/g' |

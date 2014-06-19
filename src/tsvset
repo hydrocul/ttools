@@ -4,12 +4,31 @@ use strict;
 use warnings;
 use utf8;
 
-my $row = shift;
-my $col = shift;
-my $value = shift;
+my $row;
+my $col;
+my $value;
+my $parse_arg_flag = 0;
+while (@ARGV) {
+    my $arg = shift(@ARGV);
+    if ($arg eq '--help') {
+        print "Usage: tsvset [row] [col] [value]\n";
+        exit 0;
+    } elsif ($parse_arg_flag == 0) {
+        $row = $arg;
+        $parse_arg_flag++;
+    } elsif ($parse_arg_flag == 1) {
+        $col = $arg;
+        $parse_arg_flag++;
+    } elsif ($parse_arg_flag == 2) {
+        $value = $arg;
+        $parse_arg_flag++;
+    } else {
+        die "Unknown argument: $arg\n";
+    }
+}
 
 my $num = 1;
-while(<>){
+while (<>) {
     my $line = $_;
     if ($num == $row) {
         my @lines = split("\t", $line);
