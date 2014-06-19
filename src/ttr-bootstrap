@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env perl
 
 # 
 # ##working-dir
@@ -22,9 +22,6 @@
 # ##end
 # 
 
-perl $WORKING_DIR/ttr.pl "$@"
-
-##file ttr.pl <<END_OF_TTR_PL
 use strict;
 use warnings;
 use utf8;
@@ -545,6 +542,4 @@ if ($build_flag) {
         exit $e;
     }
 }
-
-END_OF_TTR_PL
 
