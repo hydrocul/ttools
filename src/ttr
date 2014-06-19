@@ -314,14 +314,14 @@ sub process_macro_scala {
     my $fork_code = "cd $working_dir/rt-classes";
     if ($with_runtime) {
         die "SCALA_HOME Not found" unless ($ENV{'SCALA_HOME'});
-        $fork_code = "$fork_code; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar 2>/dev/null"
+        $fork_code = "$fork_code; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar || exit 1"
     }
 
     my $pid = fork;
     if ($pid) {
         wait;
     } elsif (defined $pid) {
-        exec("$fork_code; scalac $src_path && jar cf ../rt-jars/$jar_fname . 2>/dev/null");
+        exec("$fork_code; scalac $src_path && jar cf ../rt-jars/$jar_fname .");
     } else {
         die;
     }
