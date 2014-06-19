@@ -151,6 +151,7 @@ sub wrap_working_dir {
         push(@first_lines, "    RM_HARD_WORKING_DIR=1");
         push(@first_lines, "fi");
     }
+    push(@first_lines, 'trap ":" 2 3 15');
     push(@first_lines, "(");
     push(@last_lines, $separator);
     push(@last_lines, ")");
