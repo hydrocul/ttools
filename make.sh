@@ -7,7 +7,7 @@ mkdir -pv bin || exit 1
 copy_cmd()
 {
     NAME=$1
-    if [ ! -e bin/$NAME -o src/$NAME -nt bin/$NAME ]; then
+    if [ ! -x bin/$NAME -o src/$NAME -nt bin/$NAME ]; then
         echo "build $NAME"
         if [ "$NAME" = "ttr" ]; then
             perl src/ttr-bootstrap --build --cross --include src src/$NAME > tmp/$NAME || exit 1
