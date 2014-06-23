@@ -3,6 +3,7 @@
 cd `dirname $0`
 
 mkdir -pv bin || exit 1
+mkdir -pv tmp || exit 1
 
 copy_cmd()
 {
