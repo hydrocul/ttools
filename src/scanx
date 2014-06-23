@@ -7,12 +7,6 @@ my @htmlSingleElements = qw/area base br button embed hr img input link meta obj
 
 my $delimiter = '/';
 
-foreach (@ARGV) {
-    if ($_ =~ /\A-p(.)/) {
-        $delimiter = $1;
-    }
-}
-
 sub trim {
     my ($str) = @_;
     $str =~ s/^\s*(.*?)\s*$/$1/;
@@ -48,25 +42,37 @@ sub print_attr {
 my $first = 1;
 my @labels = ();
 
-my $line = join('', <STDIN>);
+sub process_partial {
+    my ($line, $is_last) = @_;
 
-    $line = trim($line);
-    while (length($line) > 0) {
-        my $h;
-        if (@labels) {
-            $h = $labels[0];
-        } else {
-            $h = ["", "", 0];
-        }
-        my $otherFlag = 1;
-        if ($first && $line =~ /\A<\?xml.*?>(.*)\z/is) {
+    my $h;
+    if (@labels) {
+        $h = $labels[0];
+    } else {
+        $h = ["", "", 0];
+    }
+
+    $line =~ s/\A[ \t\r\n]*(.*)\z/$1/s;
+
+    if ($first) {
+        if ($line =~ /\A<\?xml.*?>(.*)\z/is) {
             $line = $1;
             @htmlSingleElements = ();
-            $otherFlag = 0;
-        } elsif ($first && $line =~ /\A<!DOCTYPE.*?>(.*)\z/is) {
+            $first = undef;
+            return ($line, undef);
+        } elsif ($line =~ /\A<!DOCTYPE.*?>(.*)\z/is) {
             $line = $1;
-            $otherFlag = 0;
-        } elsif ($line =~ /\A<!--(.*?)-->(.*)\z/s) {
+            $first = undef;
+            return ($line, undef);
+        } elsif ($line =~ /\A<[^>]*\z/s) {
+            return ($line, 1);
+        }
+    }
+
+    $first = undef;
+
+    if ($line =~ /\A</) {
+        if ($line =~ /\A<!--(.*?)-->(.*)\z/s) {
             my @text = split(/\n/, $1);
             $line = $2;
             foreach my $text (@text) {
@@ -76,32 +82,26 @@ my $line = join('', <STDIN>);
                      $h->[2] = 1;
                 }
             }
-            $otherFlag = 0;
-        } elsif ($line =~ /\A<([^ \t\r\n\/>]+)([^>]*?)\/[ \t\r\n]*>(.*)\z/s) { # 単独の要素
-            if ($h->[0] ne 'script') {
-                my $name = lc($1);
-                my $attr_str = $2;
-                $line = $3;
-                my $name2 = $1;
-                print_attr("$h->[1]$delimiter$name2", $attr_str);
-                print "$delimiter$h->[1]$delimiter$name2\t\n";
-                $otherFlag = 0;
+            return ($line, undef);
+        } elsif ($line =~ /\A<([^ \t\r\n\/>]+)([^>]*?)\/[ \t\r\n]*>(.*)\z/s && $h->[0] ne 'script') { # 単独の要素
+            my $name = lc($1);
+            my $attr_str = $2;
+            $line = $3;
+            print_attr("$h->[1]$delimiter$name", $attr_str);
+            print "$delimiter$h->[1]$delimiter$name\t\n";
+            return ($line, undef);
+        } elsif ($line =~ /\A<([^ \t\r\n\/>]+)(.*?)>(.*)\z/s && $h->[0] ne 'script') { # 開きタグ
+            my $name = lc($1);
+            my $attr_str = $2;
+            $line = $3;
+            $h->[2] = 1;
+            print_attr("$h->[1]$delimiter$name", $attr_str);
+            if (grep {$_ eq $name} @htmlSingleElements) {
+                print "$delimiter$h->[1]$delimiter$name\t\n";
+            } else {
+                unshift(@labels, [$name, "$h->[1]$delimiter$name"]);
             }
-        } elsif ($line =~ /\A<([^ \t\r\n\/>]+)(.*?)>(.*)\z/s) { # 開きタグ
-            if ($h->[0] ne 'script') {
-                my $name = lc($1);
-                my $attr_str = $2;
-                $line = $3;
-                my $name2 = $name;
-                $h->[2] = 1;
-                print_attr("$h->[1]$delimiter$name2", $attr_str);
-                if (grep {$_ eq $name} @htmlSingleElements) {
-                    print "$delimiter$h->[1]$delimiter$name2\t\n";
-                } else {
-                    unshift(@labels, [$name, "$h->[1]$delimiter$name2"]);
-                }
-                $otherFlag = 0;
-            }
+            return ($line, undef);
         } elsif ($line =~ /\A<\/([^ \t\r\n\/>]+).*?>(.*)\z/s) { # 閉じタグ
             my $name = lc($1);
             if ($name eq $h->[0]) {
@@ -110,33 +110,73 @@ my $line = join('', <STDIN>);
                     print "$delimiter$h->[1]\t\n";
                 }
                 shift(@labels);
-                $otherFlag = 0;
+                return ($line, undef);
             }
-        } elsif ($line =~ /\A(.+?)(<.*)\z/s) {
-            my @text = split(/\n/, decode_html($1));
-            $line = $2;
-            foreach my $text (@text) {
-                $text = trim($text);
-                if (length($text) > 0) {
-                    print "$delimiter$h->[1]${delimiter}text()\t$text\n";
-                    $h->[2] = 1;
-                }
-            }
-            $otherFlag = 0;
+        } elsif ($line =~ /\A<[^>]*\z/s) {
+            return ($line, 1);
         }
-        if ($otherFlag) {
-            my @text = split(/\n/, decode_html($line));
-            $line = "";
-            foreach my $text (@text) {
-                $text = trim($text);
-                if (length($text) > 0) {
-                    print "$delimiter$h->[1]${delimiter}text()\t$text\n";
-                    $h->[2] = 1;
-                }
-            }
-        }
-        $first = 0;
-        $line = trim($line);
     }
+
+    if ($line =~ /\A(.+?)(<.*)\z/s) {
+        my @text = split(/\n/, decode_html($1));
+        $line = $2;
+        foreach my $text (@text) {
+            $text = trim($text);
+            if (length($text) > 0) {
+                print "$delimiter$h->[1]${delimiter}text()\t$text\n";
+                $h->[2] = 1;
+            }
+        }
+        return ($line, undef);
+    } elsif ($line =~ /\A(.+?)(\n.*)\z/s) {
+        my $text = trim(decode_html($1));
+        $line = $2;
+        if (length($text) > 0) {
+            print "$delimiter$h->[1]${delimiter}text()\t$text\n";
+            $h->[2] = 1;
+        }
+        return ($line, undef);
+    } elsif ($is_last) {
+        my $text = trim(decode_html($line));
+        $line = '';
+        if (length($text) > 0) {
+            print "$delimiter$h->[1]${delimiter}text()\t$text\n";
+            $h->[2] = 1;
+        }
+        return ($line, undef);
+    }
+
+    return ($line, 1);
+}
+
+foreach (@ARGV) {
+    if ($_ =~ /\A-p(.)/) {
+        $delimiter = $1;
+    } else {
+        die "Unknwon argument: $_\n";
+    }
+}
+
+my $line = '';
+while () {
+    my $len = read STDIN, my $buf, 1024;
+    die unless (defined($len));
+    if ($len == 0) {
+        while () {
+            my $need_tail;
+            ($line, $need_tail) = process_partial($line, 1);
+            exit if (length($line) == 0);
+            die if ($need_tail);
+        }
+    }
+    $line = $line . $buf;
+    while () {
+        my $need_tail;
+        ($line, $need_tail) = process_partial($line, undef);
+        last if ($need_tail);
+    }
+}
+
+
 
 
