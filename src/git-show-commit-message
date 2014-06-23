@@ -1,0 +1,26 @@
+#!/bin/sh
+
+help()
+{
+    echo "Usage: git-show-commit-message <COMMIT>"
+}
+
+while [ "$#" != 0 ]; do
+    if [ -z "$COMMIT" ]; then
+        COMMIT=$1
+    elif [ "$1" = '--help' ]; then
+        help
+        exit
+    else
+        echo "Unknown argument: $1" >&2
+        exit 1
+    fi
+    shift
+done
+
+if [ -z "$COMMIT" ]; then
+    help
+fi
+
+git show --format=%s $COMMIT | head -n1
+
