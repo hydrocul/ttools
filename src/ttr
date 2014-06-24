@@ -79,6 +79,7 @@ sub create_heredoc_sh {
     my ($attached_file) = @_;
     my @result_lines = ();
     my $filename = $attached_file->{'name'};
+    push(@result_lines, "# $filename");
     my $dirname = dirname($filename);
     if ($dirname ne '.') {
         push(@result_lines, "mkdir -p \$WORKING_DIR/$dirname");
