@@ -1,0 +1,325 @@
+#!/bin/sh
+
+MODE=
+export DIFF_MODE=
+while [ "$#" != 0 ]; do
+    if [ "$1" = '--help' ]; then
+        echo "Usage: scan"
+        exit
+    elif [ "$1" = '--xml' ]; then
+        MODE=XML
+    elif [ "$1" = '--json' ]; then
+        MODE=JSON
+    elif [ "$1" = '--diff' ]; then
+        DIFF_MODE=1
+    else
+        echo "Unknown argument: $1" >&2
+        exit 1
+    fi
+    shift
+done
+
+if [ "$MODE" = "XML" ]; then
+    perl $WORKING_DIR/xml.pl
+elif [ "$MODE" = "JSON" ]; then
+    php $WORKING_DIR/json.php
+else
+    perl $WORKING_DIR/auto_format.pl
+fi
+
+
+##file auto_format.pl <<END_OF_PHP
+
+    use strict;
+    use warnings;
+
+    my $len = read STDIN, my $buf, 1024;
+    die unless (defined($len));
+    my $script_path;
+    if ($buf =~ /\A\s*</) {
+        $script_path = "perl $ENV{WORKING_DIR}/xml.pl";
+    } elsif ($buf =~ /\A\s*{/s) {
+        $script_path = "php $ENV{WORKING_DIR}/json.php";
+    } elsif ($buf =~ /\A\s*\[/s) {
+        $script_path = "php $ENV{WORKING_DIR}/json.php";
+    } elsif ($buf =~ /\A[a-zA-Z0-9]+\({/s) {
+        $script_path = "php $ENV{WORKING_DIR}/json.php";
+    } elsif ($buf =~ /\A[a-zA-Z0-9]+\(\[/s) {
+        $script_path = "php $ENV{WORKING_DIR}/json.php";
+    } else {
+        $script_path = "cat";
+    }
+    open(my $child, '|-', $script_path);
+    die unless ($child);
+    print $child $buf;
+    while () {
+        $len = read STDIN, $buf, 1024;
+        die unless (defined($len));
+        last unless ($len);
+        print $child $buf;
+    }
+    close $child;
+
+END_OF_PHP
+
+
+##file json.php <<END_OF_PHP
+<?php
+
+    $diff_mode = getenv('DIFF_MODE');
+
+    function print_data($head, $data) {
+        global $diff_mode;
+        if (is_array($data)) {
+            if (is_list($data)) {
+                echo "$head\tlist\t\n";
+                $count = count($data);
+                for ($ii = 0; $ii < $count; $ii++) {
+                    if ($diff_mode) {
+                        print_data ("$head/*", $data[$ii]);
+                    } else {
+                        print_data ("$head/$ii", $data[$ii]);
+                    }
+                }
+            } else {
+                echo "$head\tmap\t\n";
+                foreach ($data as $key => $value) {
+                    $key = str_replace("%", "%25", $key);
+                    $key = str_replace("/", "%2F", $key);
+                    $key = str_replace(" ", "%20", $key);
+                    $key = str_replace("\t", "%09", $key);
+                    print_data ("$head/$key", $value);
+                }
+            }
+        } else if (is_int($data)) {
+            echo "$head\tint\t$data\n";;
+        } else if (is_float($data)) {
+            echo "$head\tfloat\t$data\n";;
+        } else if (is_bool($data)) {
+            if ($data) {
+                echo "$head\tbool\ttrue\n";;
+            } else {
+                echo "$head\tbool\tfalse\n";;
+            }
+        } else {
+            $data = explode("\n", $data);
+            $is_first = true;
+            foreach ($data as $l) {
+                if ($is_first) {
+                    echo "$head\tstring\t$l\n";
+                    $is_first = false;
+                } else {
+                    echo "$head\tappend\t$l\n";
+                }
+            }
+        }
+    }
+
+    function is_list($data) {
+        $count = count($data);
+        for ($ii = 0; $ii < $count; $ii++) {
+             if (!isset($data[$ii])) {
+                 return false;
+             }
+        }
+        return true;
+    }
+
+    $stdin = file_get_contents('php://stdin');
+
+    // JSONPの場合は関数呼び出しを削除してJSONに修正
+    if (preg_match('/\A\s*[_.\[\]\"0-9A-Za-z]+\((.+)\);?\s*\Z/', $stdin, $matches)) {
+        $stdin = $matches[1];
+    }
+
+    $data = json_decode($stdin, true);
+
+    print_data("", $data);
+
+END_OF_PHP
+
+##file xml.pl <<END_OF_PERL
+
+    use strict;
+    use warnings;
+
+    my @htmlSingleElements = qw/area base br button embed hr img input link meta object param wbr/;
+
+    my $delimiter = '/';
+
+    sub trim {
+        my ($str) = @_;
+        $str =~ s/^\s*(.*?)\s*$/$1/;
+        $str;
+    }
+
+    sub decode_html {
+        my ($str) = @_;
+        $str =~ s/&gt;/>/g;
+        $str =~ s/&lt;/</g;
+        $str =~ s/&amp;/&/g;
+        $str =~ s/&quot;/"/g;
+        $str =~ s/&apos;/'"/g;
+        $str;
+    }
+
+    sub print_attr {
+        my ($h2, $line) = @_;
+        $line = trim($line);
+        while (length($line) > 0) {
+            if ($line =~ /\A([-_a-zA-Z0-9]+)="(.*?)"(.*)\z/) {
+                my $name = $1;
+                my $value = trim(decode_html($2));
+                $line = $3;
+                print "$delimiter$h2$delimiter\@$name\t$value\n";
+            } else {
+                $line = "";
+            }
+            $line = trim($line);
+        }
+    }
+
+    my $first = 1;
+    my @labels = ();
+
+    sub process_partial {
+        my ($line, $is_last) = @_;
+
+        my $h;
+        if (@labels) {
+            $h = $labels[0];
+        } else {
+            $h = ["", "", 0];
+        }
+
+        $line =~ s/\A[ \t\r\n]*(.*)\z/$1/s;
+
+        if ($first) {
+            if ($line =~ /\A<\?xml.*?>(.*)\z/is) {
+                $line = $1;
+                @htmlSingleElements = ();
+                $first = undef;
+                return ($line, undef);
+            } elsif ($line =~ /\A<!DOCTYPE.*?>(.*)\z/is) {
+                $line = $1;
+                $first = undef;
+                return ($line, undef);
+            } elsif ($line =~ /\A<[^>]*\z/s) {
+                return ($line, 1);
+            }
+        }
+
+        $first = undef;
+
+        if ($line =~ /\A</) {
+            if ($line =~ /\A<!--(.*?)-->(.*)\z/s) {
+                my @text = split(/\n/, $1);
+                $line = $2;
+                foreach my $text (@text) {
+                    $text = trim($text);
+                    if (length($text) > 0) {
+                         print "$delimiter$h->[1]${delimiter}comment()\t$text\n";
+                         $h->[2] = 1;
+                    }
+                }
+                return ($line, undef);
+            } elsif ($line =~ /\A<!--(.*)\z/s) {
+                return ($line, 1);
+            } elsif ($line =~ /\A<([^ \t\r\n\/>]+)([^>]*?)\/[ \t\r\n]*>(.*)\z/s && $h->[0] ne 'script') { # 単独の要素
+                my $name = lc($1);
+                my $attr_str = $2;
+                $line = $3;
+                print_attr("$h->[1]$delimiter$name", $attr_str);
+                print "$delimiter$h->[1]$delimiter$name\t\n";
+                return ($line, undef);
+            } elsif ($line =~ /\A<([^ \t\r\n\/>]+)(.*?)>(.*)\z/s && $h->[0] ne 'script') { # 開きタグ
+                my $name = lc($1);
+                my $attr_str = $2;
+                $line = $3;
+                $h->[2] = 1;
+                print_attr("$h->[1]$delimiter$name", $attr_str);
+                if (grep {$_ eq $name} @htmlSingleElements) {
+                    print "$delimiter$h->[1]$delimiter$name\t\n";
+                } else {
+                    unshift(@labels, [$name, "$h->[1]$delimiter$name"]);
+                }
+                return ($line, undef);
+            } elsif ($line =~ /\A<\/([^ \t\r\n\/>]+).*?>(.*)\z/s) { # 閉じタグ
+                my $name = lc($1);
+                if ($name eq $h->[0]) {
+                    $line = $2;
+                    unless ($h->[2]) {
+                        print "$delimiter$h->[1]\t\n";
+                    }
+                    shift(@labels);
+                    return ($line, undef);
+                }
+            } elsif ($line =~ /\A<[^>]*\z/s) {
+                return ($line, 1);
+            }
+        }
+
+        if ($line =~ /\A(.+?)(<.*)\z/s) {
+            my @text = split(/\n/, decode_html($1));
+            $line = $2;
+            foreach my $text (@text) {
+                $text = trim($text);
+                if (length($text) > 0) {
+                    print "$delimiter$h->[1]${delimiter}text()\t$text\n";
+                    $h->[2] = 1;
+                }
+            }
+            return ($line, undef);
+        } elsif ($line =~ /\A(.+?)(\n.*)\z/s) {
+            my $text = trim(decode_html($1));
+            $line = $2;
+            if (length($text) > 0) {
+                print "$delimiter$h->[1]${delimiter}text()\t$text\n";
+                $h->[2] = 1;
+            }
+            return ($line, undef);
+        } elsif ($is_last) {
+            my $text = trim(decode_html($line));
+            $line = '';
+            if (length($text) > 0) {
+                print "$delimiter$h->[1]${delimiter}text()\t$text\n";
+                $h->[2] = 1;
+            }
+            return ($line, undef);
+        }
+
+        return ($line, 1);
+    }
+
+    foreach (@ARGV) {
+        if ($_ =~ /\A-p(.)/) {
+            $delimiter = $1;
+        } else {
+            die "Unknwon argument: $_\n";
+        }
+    }
+
+    my $line = '';
+    while () {
+        my $len = read STDIN, my $buf, 1024;
+        die unless (defined($len));
+        if ($len == 0) {
+            while () {
+                my $need_tail;
+                ($line, $need_tail) = process_partial($line, 1);
+                exit if (length($line) == 0);
+                die if ($need_tail);
+            }
+        }
+        $line = $line . $buf;
+        while () {
+            my $need_tail;
+            ($line, $need_tail) = process_partial($line, undef);
+            last if ($need_tail);
+        }
+    }
+
+END_OF_PERL
+
+
+
