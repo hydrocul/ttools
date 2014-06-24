@@ -114,7 +114,7 @@ sub create_heredoc_sh {
         die "DEBUG $filename";
     }
     push(@result_lines, "fi");
-    push(@result_lines, "ln -s \$HOME/.ttr/$hash \$WORKING_DIR/$filename");
+    push(@result_lines, "ln -f -s \$HOME/.ttr/$hash \$WORKING_DIR/$filename");
     \@result_lines;
 }
 
