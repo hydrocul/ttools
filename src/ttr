@@ -95,17 +95,17 @@ sub create_heredoc_sh {
         die "DEBUG $filename";
     }
     push(@result_lines, "mkdir -p \$HOME/.ttr");
-    push(@result_lines, "if [ -e \$HOME/.ttr/$hash ]; then");
-    push(@result_lines, "    touch \$HOME/.ttr/$hash");
+    push(@result_lines, "if [ -e \$HOME/.ttr/file-$hash ]; then");
+    push(@result_lines, "    touch \$HOME/.ttr/file-$hash");
     push(@result_lines, "else");
     if ($attached_file->{'body'}) {
         my $lines = $attached_file->{'body'};
-        push(@result_lines, "cat <<\\EOF_$hash > \$HOME/.ttr/$hash");
+        push(@result_lines, "cat <<\\EOF_$hash > \$HOME/.ttr/file-$hash");
         push(@result_lines, @$lines);
         push(@result_lines, "EOF_$hash");
     } elsif ($attached_file->{'binary_path'}) {
         my $path = $attached_file->{'binary_path'};
-        push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$hash");
+        push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/file-$hash");
         open(FP, "-|", "cat $path | base64");
         my @lines = (<FP>);
         close(FP);
@@ -115,7 +115,7 @@ sub create_heredoc_sh {
         die "DEBUG $filename";
     }
     push(@result_lines, "fi");
-    push(@result_lines, "ln -f -s \$HOME/.ttr/$hash \$WORKING_DIR/$filename");
+    push(@result_lines, "ln -f -s \$HOME/.ttr/file-$hash \$WORKING_DIR/$filename");
     \@result_lines;
 }
 
