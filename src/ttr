@@ -37,6 +37,8 @@ use Data::Dumper;
 
 my $separator = "################################################################################";
 
+my $HOME = $ENV{'HOME'};
+
 my $include_path = ".";
 my $cross_flag = undef;
 
@@ -85,27 +87,42 @@ sub create_heredoc_sh {
         push(@result_lines, "mkdir -p \$WORKING_DIR/$dirname");
     }
     my $hash;
+    my $output_fname;
     if ($attached_file->{'body'}) {
         my $lines = $attached_file->{'body'};
         $hash = get_lines_hash($lines);
+        $output_fname = "file-$hash";
     } elsif ($attached_file->{'binary_path'}) {
         my $path = $attached_file->{'binary_path'};
-        $hash = substr(`cat $path | md5sum`, 0, 32);
+        $hash = get_file_hash($path);
+        $output_fname = "file-$hash";
+    } elsif ($attached_file->{'output_fname'}) {
+        $output_fname = $attached_file->{'output_fname'};
+        my $path = "$HOME/.ttr/$output_fname";
+        $hash = get_file_hash($path);
     } else {
         die "DEBUG $filename";
     }
     push(@result_lines, "mkdir -p \$HOME/.ttr");
-    push(@result_lines, "if [ -e \$HOME/.ttr/file-$hash ]; then");
-    push(@result_lines, "    touch \$HOME/.ttr/file-$hash");
+    push(@result_lines, "if [ -e \$HOME/.ttr/$output_fname ]; then");
+    push(@result_lines, "    touch \$HOME/.ttr/$output_fname");
     push(@result_lines, "else");
     if ($attached_file->{'body'}) {
         my $lines = $attached_file->{'body'};
-        push(@result_lines, "cat <<\\EOF_$hash > \$HOME/.ttr/file-$hash");
+        push(@result_lines, "cat <<\\EOF_$hash > \$HOME/.ttr/$output_fname");
         push(@result_lines, @$lines);
         push(@result_lines, "EOF_$hash");
     } elsif ($attached_file->{'binary_path'}) {
         my $path = $attached_file->{'binary_path'};
-        push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/file-$hash");
+        push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
+        open(FP, "-|", "cat $path | base64");
+        my @lines = (<FP>);
+        close(FP);
+        push(@result_lines, @{remove_end_of_line(\@lines)});
+        push(@result_lines, "EOF_$hash");
+    } elsif ($attached_file->{'output_fname'}) {
+        my $path = "$HOME/.ttr/$output_fname";
+        push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
         open(FP, "-|", "cat $path | base64");
         my @lines = (<FP>);
         close(FP);
@@ -115,7 +132,7 @@ sub create_heredoc_sh {
         die "DEBUG $filename";
     }
     push(@result_lines, "fi");
-    push(@result_lines, "ln -f -s \$HOME/.ttr/file-$hash \$WORKING_DIR/$filename");
+    push(@result_lines, "ln -f -s \$HOME/.ttr/$output_fname \$WORKING_DIR/$filename");
     \@result_lines;
 }
 
@@ -124,6 +141,11 @@ sub get_lines_hash {
     my $body = join("\n", @$lines) . "\n";
     my $hash = md5_hex($body);
     $hash;
+}
+
+sub get_file_hash {
+    my ($path) = @_;
+    substr(`cat $path | md5sum`, 0, 32);
 }
 
 sub wrap_working_dir {
@@ -325,35 +347,46 @@ sub process_macro_scala {
         $src_path = search_include_file($src_fname)
     }
 
-    mkdir("$working_dir/rt-classes") if (! -e "$working_dir/rt-classes");
-    mkdir("$working_dir/rt-jars") if (! -e "$working_dir/rt-jars");
-
-    my $fork_code = "cd $working_dir/rt-classes";
+    my $src_hash = get_file_hash($src_path);
+    my $output_fname;
     if ($with_runtime) {
-        die "SCALA_HOME Not found" unless ($ENV{'SCALA_HOME'});
-        $fork_code = "$fork_code; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar || exit 1"
-    }
-
-    my $pid = fork;
-    if ($pid) {
-        wait;
-    } elsif (defined $pid) {
-        exec("$fork_code; scalac $src_path && jar cf ../rt-jars/$jar_fname .");
+        $output_fname = "scala-jar-$src_hash.rt.jar";
     } else {
-        die;
+        $output_fname = "scala-jar-$src_hash.jar";
     }
+    my $jar_path = "$HOME/.ttr/$output_fname";
+    unless ( -e $jar_path) {
 
-    if ($? != 0) {
-        my $e = $? >> 8;
-        if (!$e) {
-            $e = 1;
+        mkdir("$working_dir/rt-classes") if (! -e "$working_dir/rt-classes");
+
+        my $fork_code = "cd $working_dir/rt-classes";
+        if ($with_runtime) {
+            die "SCALA_HOME Not found" unless ($ENV{'SCALA_HOME'});
+            $fork_code = "$fork_code; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar || exit 1"
         }
-        exit $e;
+
+        my $pid = fork;
+        if ($pid) {
+            wait;
+        } elsif (defined $pid) {
+            exec("$fork_code; scalac $src_path && jar cf $jar_path .");
+        } else {
+            die;
+        }
+
+        if ($? != 0) {
+            my $e = $? >> 8;
+            if (!$e) {
+                $e = 1;
+            }
+            exit $e;
+        }
+
+        `rm -r $working_dir/rt-classes`;
+
     }
 
-    `rm -r $working_dir/rt-classes`;
-
-    ([{'name' => $jar_fname, 'binary_path' => "$working_dir/rt-jars/$jar_fname"}], $result_rest_lines);
+    ([{'name' => $jar_fname, 'output_fname' => $output_fname}], $result_rest_lines);
 }
 
 sub search_include_file {
