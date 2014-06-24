@@ -208,14 +208,10 @@ sub process_macro_lines_rest {
     if ($line =~ /\A\s*##file\s+(.*)\z/) {
         my ($args, $heredoc_marker) = parse_args($1);
         my $fname = $args->[0];
-        if (defined $heredoc_marker) {
-            my ($attached_files, $rest_lines) = process_macro_include_file_heredoc(
-                $fname, $heredoc_marker, \@rest_lines);
-            @attached_files = @$attached_files;
-            @rest_lines = @$rest_lines;
-        } else {
-            @attached_files = @{process_macro_include_file($fname)};
-        }
+        my ($attached_files, $rest_lines) = process_macro_include_file(
+            $fname, $heredoc_marker, \@rest_lines);
+        @attached_files = @$attached_files;
+        @rest_lines = @$rest_lines;
         $dirty = 1;
     } elsif ($line =~ /\A\s*##scala\s+(.*)\z/) {
         my ($args, $heredoc_marker) = parse_args($1);
@@ -287,22 +283,24 @@ sub parse_heredoc {
 }
 
 sub process_macro_include_file {
-    my ($filename) = @_;
-    my $filepath = search_include_file($filename);
-    die "Not found: $filename\n" unless (defined $filepath);
-    open(FP, "<", $filepath) or die "Cannot open $filepath\n";
-    my $include_lines = [<FP>];
-    close(FP);
-    $include_lines = remove_end_of_line($include_lines);
-    my ($body, $attached_files, $dirty) = process_macro_lines($include_lines);
-    [{'name' => $filename, 'body' => $body}, @$attached_files];
-}
-
-sub process_macro_include_file_heredoc {
     my ($filename, $heredoc_marker, $rest_lines) = @_;
-    my ($include_lines, $new_rest_lines) = parse_heredoc($rest_lines, $heredoc_marker);
-    my ($body, $attached_files, $dirty) = process_macro_lines($include_lines);
-    ([{'name' => $filename, 'body' => $body}, @$attached_files], $new_rest_lines);
+    my $include_lines;
+    if (defined $heredoc_marker) {
+        ($include_lines, $rest_lines) = parse_heredoc($rest_lines, $heredoc_marker);
+    } else {
+        my $filepath = search_include_file($filename);
+        die "Not found: $filename\n" unless (defined $filepath);
+        open(FP, "<", $filepath) or die "Cannot open $filepath\n";
+        $include_lines = [<FP>];
+        close(FP);
+        $include_lines = remove_end_of_line($include_lines);
+    }
+    if ($filename =~ /\.sh\z/) {
+        my ($body, $attached_files, $dirty) = process_macro_lines($include_lines);
+        ([{'name' => $filename, 'body' => $body}, @$attached_files], $rest_lines);
+    } else {
+        ([{'name' => $filename, 'body' => $include_lines}], $rest_lines);
+    }
 }
 
 sub process_macro_scala {
