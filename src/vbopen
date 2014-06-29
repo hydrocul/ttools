@@ -1,0 +1,77 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Cwd;
+use File::Copy qw/copy/;
+use File::Temp qw/tempfile/;
+
+my $target;
+my $mac_ssh;
+my $mac_mount;
+my $mac_home;
+my $mac_downloads;
+while (@ARGV) {
+    my $arg = shift(@ARGV);
+    if ($arg eq '--mac-ssh') {
+        $mac_ssh = shift(@ARGV);
+    } elsif ($arg eq '--mac-mount') {
+        $mac_mount = shift(@ARGV);
+    } elsif ($arg eq '--mac-home') {
+        $mac_home = shift(@ARGV);
+    } elsif ($arg eq '--mac-downloads') {
+        $mac_downloads = shift(@ARGV);
+    } elsif (!defined($target)) {
+        $target = $arg;
+    }
+}
+
+unless (defined($target)) {
+    die "Missing file operand\n";
+}
+unless (defined($mac_ssh)) {
+    die "Missing --mac-ssh\n";
+}
+unless (defined($mac_mount)) {
+    die "Missing --mac-mount\n";
+}
+unless (defined($mac_home)) {
+    die "Missing --mac-home\n";
+}
+unless (defined($mac_downloads)) {
+    $mac_downloads = "Downloads";
+}
+
+$target = Cwd::realpath($target);
+
+my $mac_target;
+unless ($target =~ ('\A' . quotemeta($mac_mount) . '(' . quotemeta($mac_home) . '\/.+)\z')) {
+    my $fname;
+    my $ext;
+    if ($target =~ /\/([^\/]+)\.([^.]+)\z/) {
+        $fname = $1;
+        $ext = $2;
+    } else {
+        $fname = $target;
+        $ext = 'tmp';
+    }
+    my $template = $fname . "-XXXXXX";
+    my ($fh, $target2) = tempfile($template, DIR => $mac_mount . $mac_home . '/' . $mac_downloads, SUFFIX => ".$ext");
+    close $fh;
+    copy($target, $target2);
+    $target = $target2;
+}
+
+if ($target =~ ('\A' . quotemeta($mac_mount) . '(' . quotemeta($mac_home) . '\/.+)\z')) {
+    $mac_target = $1;
+} else {
+    die $target;
+}
+
+$mac_ssh = quotemeta($mac_ssh);
+$mac_target = quotemeta($mac_target);
+exec("ssh $mac_ssh open $mac_target");
+
+
+
+

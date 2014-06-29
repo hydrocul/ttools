@@ -41,6 +41,7 @@ copy_cmd ssv2tsv
 copy_cmd tsvaddnum
 copy_cmd tsvset
 copy_cmd trimhtml
+copy_cmd vbopen
 
 rm bin/scanx 2>/dev/null
 rm bin/parj 2>/dev/null
