@@ -11,6 +11,7 @@ my $mac_ssh;
 my $mac_mount;
 my $mac_home;
 my $mac_downloads;
+my $target_ext;
 while (@ARGV) {
     my $arg = shift(@ARGV);
     if ($arg eq '--mac-ssh') {
@@ -21,14 +22,13 @@ while (@ARGV) {
         $mac_home = shift(@ARGV);
     } elsif ($arg eq '--mac-downloads') {
         $mac_downloads = shift(@ARGV);
+    } elsif ($arg eq '--ext') {
+        $target_ext = shift(@ARGV);
     } elsif (!defined($target)) {
         $target = $arg;
     }
 }
 
-unless (defined($target)) {
-    die "Missing file operand\n";
-}
 unless (defined($mac_ssh)) {
     die "Missing --mac-ssh\n";
 }
@@ -42,6 +42,15 @@ unless (defined($mac_downloads)) {
     $mac_downloads = "Downloads";
 }
 
+unless (defined($target)) {
+    my ($fh, $target2) = tempfile(DIR => $mac_mount . $mac_home . '/' . $mac_downloads);
+    while (my $line = <STDIN>) {
+        print $fh $line;
+    }
+    close $fh;
+    $target = $target2;
+}
+
 $target = Cwd::realpath($target);
 
 my $mac_target;
@@ -50,13 +59,13 @@ unless ($target =~ ('\A' . quotemeta($mac_mount) . '(' . quotemeta($mac_home) . 
     my $ext;
     if ($target =~ /\/([^\/]+)\.([^.]+)\z/) {
         $fname = $1;
-        $ext = $2;
+        $ext = ".$2";
     } else {
         $fname = $target;
-        $ext = 'tmp';
+        $ext = '';
     }
     my $template = $fname . "-XXXXXX";
-    my ($fh, $target2) = tempfile($template, DIR => $mac_mount . $mac_home . '/' . $mac_downloads, SUFFIX => ".$ext");
+    my ($fh, $target2) = tempfile($template, DIR => $mac_mount . $mac_home . '/' . $mac_downloads, SUFFIX => $ext);
     close $fh;
     copy($target, $target2);
     $target = $target2;
@@ -68,9 +77,23 @@ if ($target =~ ('\A' . quotemeta($mac_mount) . '(' . quotemeta($mac_home) . '\/.
     die $target;
 }
 
-$mac_ssh = quotemeta($mac_ssh);
 $mac_target = quotemeta($mac_target);
-exec("ssh $mac_ssh open $mac_target");
+my $ssh_cmd = "open $mac_target";
+
+if (defined($target_ext)) {
+    my $ext;
+    if ($target =~ /\.([^.]+)\z/) {
+        $ext = $1;
+    } else {
+        $ext = '';
+    }
+    if ($ext ne $target_ext) {
+        $ssh_cmd = "ln $mac_target $mac_target.$target_ext; open $mac_target.$target_ext";
+    }
+}
+
+$mac_ssh = quotemeta($mac_ssh);
+exec("ssh $mac_ssh '$ssh_cmd'");
 
 
 
