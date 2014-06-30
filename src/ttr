@@ -295,7 +295,7 @@ sub parse_args {
 }
 
 sub parse_heredoc {
-    my ($rest_lines, $heredoc_marker) = @_;
+    my ($rest_lines, $heredoc_marker, $ext) = @_;
     my @result_lines = ();
     while (@$rest_lines) {
         my ($line, @rest_lines) = @$rest_lines;
@@ -305,14 +305,42 @@ sub parse_heredoc {
         }
         push(@result_lines, $line);
     }
-    (\@result_lines, $rest_lines);
+    (remove_indent(\@result_lines), $rest_lines);
+}
+
+sub remove_indent {
+    my ($lines) = @_;
+    my @result_lines = ();
+    my $indent = undef;
+    my $len;
+    foreach my $line (@$lines) {
+        if (defined($indent)) {
+            if (substr($line, 0, $len) eq $indent) {
+                push(@result_lines, substr($line, $len));
+            } else {
+                push(@result_lines, $line);
+            }
+        } else {
+            if ($line =~ /\A\s*\z/) {
+                push(@result_lines, '');
+            } else {
+                $line =~ /\A(\s*)(.+)\z/;
+                $indent = $1;
+                $len = length($indent);
+                push(@result_lines, $2);
+            }
+        }
+    }
+    \@result_lines;
 }
 
 sub process_macro_include_file {
     my ($filename, $heredoc_marker, $rest_lines) = @_;
     my $include_lines;
     if (defined $heredoc_marker) {
-        ($include_lines, $rest_lines) = parse_heredoc($rest_lines, $heredoc_marker);
+        my $ext;
+        $ext = $1 if ($filename =~ /\.(.+)\z/);
+        ($include_lines, $rest_lines) = parse_heredoc($rest_lines, $heredoc_marker, $ext);
     } else {
         my $filepath = search_include_file($filename);
         die "Not found: $filename\n" unless (defined $filepath);
@@ -338,7 +366,7 @@ sub process_macro_scala {
     my $src_path;
     if (defined $heredoc_marker) {
         $src_path = "$working_dir/rt-script.scala";
-        my ($include_lines, $new_rest_lines) = parse_heredoc($rest_lines, $heredoc_marker);
+        my ($include_lines, $new_rest_lines) = parse_heredoc($rest_lines, $heredoc_marker, 'scala');
         $result_rest_lines = $new_rest_lines;
         open(FP, ">", $src_path);
         print FP "$_\n" foreach (@$include_lines);
@@ -516,19 +544,21 @@ if ($embedded_mode) {
 
 my $head_line = shift(@input_lines);
 my $shebang_command = undef;
-if ($head_line =~ /\A#!(\/.+)\z/) {
-    $shebang_command = $1;
-    if ($shebang_command =~ /\A\/[^ ]+sh /) {
-        $shebang_command = undef;
-    } elsif ($shebang_command =~ /\A\/[^ ]+sh\z/) {
-        $shebang_command = undef;
+if (defined($head_line)) {
+    if ($head_line =~ /\A#!(\/.+)\z/) {
+        $shebang_command = $1;
+        if ($shebang_command =~ /\A\/[^ ]+sh /) {
+            $shebang_command = undef;
+        } elsif ($shebang_command =~ /\A\/[^ ]+sh\z/) {
+            $shebang_command = undef;
+        } else {
+            unshift(@input_lines, $head_line);
+            $head_line = undef;
+        }
     } else {
         unshift(@input_lines, $head_line);
         $head_line = undef;
     }
-} else {
-    unshift(@input_lines, $head_line);
-    $head_line = undef;
 }
 
 if ($shebang_command) {
