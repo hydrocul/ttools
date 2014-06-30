@@ -494,11 +494,12 @@ if ($embedded_mode) {
     my $eof_marker = undef;
     foreach my $line (@input_lines) {
         if ($f eq 0) {
-            if ($line =~ /\A\s*#!ttr\s*\z/) {
+            if ($line =~ /\A\s*#!ttr\s*(.*)\z/) {
+                my ($args, $heredoc_marker) = parse_args($1);
+                if (defined($heredoc_marker)){
+                    $eof_marker = $heredoc_marker;
+                }
                 $f = 1;
-            } elsif ($line =~ /\A\s*#!ttr\s+([-_a-zA-Z0-9]+)\s*\z/) {
-                $f = 1;
-                $eof_marker = $1;
             }
         } elsif ($f eq 1) {
             if (defined($eof_marker) && $line =~ ('\A\s*' . quotemeta($eof_marker) . '\s*\z')) {
