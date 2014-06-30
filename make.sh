@@ -24,6 +24,7 @@ copy_cmd()
 copy_cmd ttr
 
 copy_cmd csv2tsv
+copy_cmd gc-linechart
 copy_cmd git-amend-past-commit
 copy_cmd git-show-commit-message
 copy_cmd gitf
