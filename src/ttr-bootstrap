@@ -1,27 +1,27 @@
-#!/usr/bin/env perl
+#!/bin/sh
+if [ -z "$WORKING_DIR" ]; then
+    if [ -z "$UID" ]; then
+        UID=`id -u`
+    fi
+    if [ -d /run/user/$UID ]; then
+        export WORKING_DIR=`mktemp -d -p /run/user/$UID`
+    elif [ -d /dev/shm ]; then
+        export WORKING_DIR=`mktemp -d -p /dev/shm`
+    else
+        export WORKING_DIR=`mktemp -d`
+    fi
+    RM_WORKING_DIR=1
+fi
+trap ":" 2 3 15
+(
 
-# 
-# ##working-dir
-# 
-# ##file example.rb
-# 
-# ##file example.txt <<end
-# ...
-# ##end
-# 
-# ##java --jar example.jar example.java
-# 
-# ##java --jar example.jar <<end
-# ...
-# ##end
-# 
-# ##scala --jar example.jar example.scala
-# 
-# ##scala --jar example.jar <<end
-# 
-# ##end
-# 
-
+################################################################################
+# ttr.pl
+mkdir -p $HOME/.ttr
+if [ -e $HOME/.ttr/file-b2e6105f2d960652e012e7b9e62b1c78 ]; then
+    touch $HOME/.ttr/file-b2e6105f2d960652e012e7b9e62b1c78
+else
+cat <<\EOF_b2e6105f2d960652e012e7b9e62b1c78 > $HOME/.ttr/file-b2e6105f2d960652e012e7b9e62b1c78
 use strict;
 use warnings;
 use utf8;
@@ -241,11 +241,15 @@ sub process_macro_lines_rest {
         my $jar_fname = undef;
         my $src_fname = undef;
         my $with_runtime = undef;
+        my $wrap_class = undef;
         while (@$args) {
             my $a = shift(@$args);
             if ($a eq '--jar') {
                 die "Missing argument of '--jar'\n" unless (@$args);
                 $jar_fname = shift(@$args);
+            } elsif ($a eq '--wrap') {
+                die "Missing argument of '--wrap'\n" unless (@$args);
+                $wrap_class = shift(@$args);
             } elsif ($a eq '--runtime') {
                 $with_runtime = 1;
             } elsif (!defined $src_fname) {
@@ -254,7 +258,7 @@ sub process_macro_lines_rest {
         }
         die "Unexpected EOF marker\n" if (defined($heredoc_marker) && defined($src_fname));
         my ($attached_files, $rest_lines) = process_macro_scala(
-            $jar_fname, $with_runtime, $src_fname, $heredoc_marker, \@rest_lines);
+            $jar_fname, $wrap_class, $with_runtime, $src_fname, $heredoc_marker, \@rest_lines);
         @attached_files = @$attached_files;
         @rest_lines = @$rest_lines;
         $dirty = 1;
@@ -292,7 +296,7 @@ sub parse_args {
 }
 
 sub parse_heredoc {
-    my ($rest_lines, $heredoc_marker) = @_;
+    my ($rest_lines, $heredoc_marker, $ext) = @_;
     my @result_lines = ();
     while (@$rest_lines) {
         my ($line, @rest_lines) = @$rest_lines;
@@ -302,14 +306,42 @@ sub parse_heredoc {
         }
         push(@result_lines, $line);
     }
-    (\@result_lines, $rest_lines);
+    (remove_indent(\@result_lines), $rest_lines);
+}
+
+sub remove_indent {
+    my ($lines) = @_;
+    my @result_lines = ();
+    my $indent = undef;
+    my $len;
+    foreach my $line (@$lines) {
+        if (defined($indent)) {
+            if (substr($line, 0, $len) eq $indent) {
+                push(@result_lines, substr($line, $len));
+            } else {
+                push(@result_lines, $line);
+            }
+        } else {
+            if ($line =~ /\A\s*\z/) {
+                push(@result_lines, '');
+            } else {
+                $line =~ /\A(\s*)(.+)\z/;
+                $indent = $1;
+                $len = length($indent);
+                push(@result_lines, $2);
+            }
+        }
+    }
+    \@result_lines;
 }
 
 sub process_macro_include_file {
     my ($filename, $heredoc_marker, $rest_lines) = @_;
     my $include_lines;
     if (defined $heredoc_marker) {
-        ($include_lines, $rest_lines) = parse_heredoc($rest_lines, $heredoc_marker);
+        my $ext;
+        $ext = $1 if ($filename =~ /\.(.+)\z/);
+        ($include_lines, $rest_lines) = parse_heredoc($rest_lines, $heredoc_marker, $ext);
     } else {
         my $filepath = search_include_file($filename);
         die "Not found: $filename\n" unless (defined $filepath);
@@ -327,7 +359,7 @@ sub process_macro_include_file {
 }
 
 sub process_macro_scala {
-    my ($jar_fname, $with_runtime, $src_fname, $heredoc_marker, $rest_lines) = @_;
+    my ($jar_fname, $wrap_class, $with_runtime, $src_fname, $heredoc_marker, $rest_lines) = @_;
     my $result_rest_lines = $rest_lines;
 
     create_working_dir();
@@ -335,13 +367,19 @@ sub process_macro_scala {
     my $src_path;
     if (defined $heredoc_marker) {
         $src_path = "$working_dir/rt-script.scala";
-        my ($include_lines, $new_rest_lines) = parse_heredoc($rest_lines, $heredoc_marker);
+        my ($include_lines, $new_rest_lines) = parse_heredoc($rest_lines, $heredoc_marker, 'scala');
         $result_rest_lines = $new_rest_lines;
+        if (defined($wrap_class)) {
+            $include_lines = wrap_scala_class_lines($include_lines, $wrap_class);
+        }
         open(FP, ">", $src_path);
         print FP "$_\n" foreach (@$include_lines);
         close(FP);
     } else {
-        $src_path = search_include_file($src_fname)
+        $src_path = search_include_file($src_fname);
+        if (defined($wrap_class)) {
+            $src_path = wrap_scala_class_file($src_path, $wrap_class);
+        }
     }
 
     my $src_hash = get_file_hash($src_path);
@@ -384,6 +422,29 @@ sub process_macro_scala {
     }
 
     ([{'name' => $jar_fname, 'output_fname' => $output_fname}], $result_rest_lines);
+}
+
+sub wrap_scala_class_lines {
+    my ($lines, $class_name) = @_;
+    my @result_lines = ();
+    push(@result_lines, "object $class_name { def main(args: Array[String]): Unit = {");
+    push(@result_lines, @$lines);
+    push(@result_lines, "} }");
+    \@result_lines;
+}
+
+sub wrap_scala_class_file {
+    my ($src_path, $class_name) = @_;
+    create_working_dir();
+    my $new_src_path = "$working_dir/wrap.scala";
+    open(FI, '<', $src_path);
+    open(FH, '>', $new_src_path);
+    print FH "object $class_name { def main(args: Array[String]): Unit = {\n";
+    print FH $_ while (<FI>);
+    print FH "} }\n";
+    close(FH);
+    close(FI);
+    $new_src_path;
 }
 
 sub search_include_file {
@@ -513,19 +574,21 @@ if ($embedded_mode) {
 
 my $head_line = shift(@input_lines);
 my $shebang_command = undef;
-if ($head_line =~ /\A#!(\/.+)\z/) {
-    $shebang_command = $1;
-    if ($shebang_command =~ /\A\/[^ ]+sh /) {
-        $shebang_command = undef;
-    } elsif ($shebang_command =~ /\A\/[^ ]+sh\z/) {
-        $shebang_command = undef;
+if (defined($head_line)) {
+    if ($head_line =~ /\A#!(\/.+)\z/) {
+        $shebang_command = $1;
+        if ($shebang_command =~ /\A\/[^ ]+sh /) {
+            $shebang_command = undef;
+        } elsif ($shebang_command =~ /\A\/[^ ]+sh\z/) {
+            $shebang_command = undef;
+        } else {
+            unshift(@input_lines, $head_line);
+            $head_line = undef;
+        }
     } else {
         unshift(@input_lines, $head_line);
         $head_line = undef;
     }
-} else {
-    unshift(@input_lines, $head_line);
-    $head_line = undef;
 }
 
 if ($shebang_command) {
@@ -591,3 +654,39 @@ if ($build_flag) {
     }
 }
 
+EOF_b2e6105f2d960652e012e7b9e62b1c78
+fi
+ln -f -s $HOME/.ttr/file-b2e6105f2d960652e012e7b9e62b1c78 $WORKING_DIR/ttr.pl
+
+################################################################################
+# 
+# ##working-dir
+# 
+# ##file example.rb
+# 
+# ##file example.txt <<end
+# ...
+# ##end
+# 
+# ##java --jar example.jar example.java
+# 
+# ##java --jar example.jar <<end
+# ...
+# ##end
+# 
+# ##scala --jar example.jar example.scala
+# 
+# ##scala --jar example.jar <<end
+# 
+# ##end
+# 
+
+perl $WORKING_DIR/ttr.pl "$@"
+
+################################################################################
+)
+RET=$?
+if [ -n "$RM_WORKING_DIR" ]; then
+    rm -rf $WORKING_DIR 2>/dev/null
+fi
+exit $RET

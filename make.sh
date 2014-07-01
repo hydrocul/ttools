@@ -14,6 +14,8 @@ copy_cmd()
             perl src/ttr-bootstrap --build --cross --include src src/$NAME > tmp/$NAME || exit 1
             chmod 755 tmp/$NAME || exit 1
             ./tmp/ttr --build --cross --include src src/$NAME > bin/$NAME || exit 1
+            rm tmp/ttr
+            cp bin/$NAME src/ttr-bootstrap
         else
             ./bin/ttr --build --cross --include src src/$NAME > bin/$NAME || exit 1
         fi
