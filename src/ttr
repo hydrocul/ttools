@@ -244,11 +244,15 @@ sub process_macro_lines_rest {
         my $jar_fname = undef;
         my $src_fname = undef;
         my $with_runtime = undef;
+        my $wrap_class = undef;
         while (@$args) {
             my $a = shift(@$args);
             if ($a eq '--jar') {
                 die "Missing argument of '--jar'\n" unless (@$args);
                 $jar_fname = shift(@$args);
+            } elsif ($a eq '--wrap') {
+                die "Missing argument of '--wrap'\n" unless (@$args);
+                $wrap_class = shift(@$args);
             } elsif ($a eq '--runtime') {
                 $with_runtime = 1;
             } elsif (!defined $src_fname) {
@@ -257,7 +261,7 @@ sub process_macro_lines_rest {
         }
         die "Unexpected EOF marker\n" if (defined($heredoc_marker) && defined($src_fname));
         my ($attached_files, $rest_lines) = process_macro_scala(
-            $jar_fname, $with_runtime, $src_fname, $heredoc_marker, \@rest_lines);
+            $jar_fname, $wrap_class, $with_runtime, $src_fname, $heredoc_marker, \@rest_lines);
         @attached_files = @$attached_files;
         @rest_lines = @$rest_lines;
         $dirty = 1;
@@ -358,7 +362,7 @@ sub process_macro_include_file {
 }
 
 sub process_macro_scala {
-    my ($jar_fname, $with_runtime, $src_fname, $heredoc_marker, $rest_lines) = @_;
+    my ($jar_fname, $wrap_class, $with_runtime, $src_fname, $heredoc_marker, $rest_lines) = @_;
     my $result_rest_lines = $rest_lines;
 
     create_working_dir();
@@ -368,11 +372,17 @@ sub process_macro_scala {
         $src_path = "$working_dir/rt-script.scala";
         my ($include_lines, $new_rest_lines) = parse_heredoc($rest_lines, $heredoc_marker, 'scala');
         $result_rest_lines = $new_rest_lines;
+        if (defined($wrap_class)) {
+            $include_lines = wrap_scala_class_lines($include_lines, $wrap_class);
+        }
         open(FP, ">", $src_path);
         print FP "$_\n" foreach (@$include_lines);
         close(FP);
     } else {
-        $src_path = search_include_file($src_fname)
+        $src_path = search_include_file($src_fname);
+        if (defined($wrap_class)) {
+            $src_path = wrap_scala_class_file($src_path, $wrap_class);
+        }
     }
 
     my $src_hash = get_file_hash($src_path);
@@ -415,6 +425,29 @@ sub process_macro_scala {
     }
 
     ([{'name' => $jar_fname, 'output_fname' => $output_fname}], $result_rest_lines);
+}
+
+sub wrap_scala_class_lines {
+    my ($lines, $class_name) = @_;
+    my @result_lines = ();
+    push(@result_lines, "object $class_name { def main(args: Array[String]): Unit = {");
+    push(@result_lines, @$lines);
+    push(@result_lines, "} }");
+    \@result_lines;
+}
+
+sub wrap_scala_class_file {
+    my ($src_path, $class_name) = @_;
+    create_working_dir();
+    my $new_src_path = "$working_dir/wrap.scala";
+    open(FI, '<', $src_path);
+    open(FH, '>', $new_src_path);
+    print FH "object $class_name { def main(args: Array[String]): Unit = {\n";
+    print FH $_ while (<FI>);
+    print FH "} }\n";
+    close(FH);
+    close(FI);
+    $new_src_path;
 }
 
 sub search_include_file {
