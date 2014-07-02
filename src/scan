@@ -42,9 +42,9 @@ fi
         $script_path = "php $ENV{WORKING_DIR}/json.php";
     } elsif ($buf =~ /\A\s*\[/s) {
         $script_path = "php $ENV{WORKING_DIR}/json.php";
-    } elsif ($buf =~ /\A[a-zA-Z0-9]+\({/s) {
+    } elsif ($buf =~ /\A[_a-zA-Z0-9]+\({/s) {
         $script_path = "php $ENV{WORKING_DIR}/json.php";
-    } elsif ($buf =~ /\A[a-zA-Z0-9]+\(\[/s) {
+    } elsif ($buf =~ /\A[_a-zA-Z0-9]+\(\[/s) {
         $script_path = "php $ENV{WORKING_DIR}/json.php";
     } else {
         $script_path = "cat";
