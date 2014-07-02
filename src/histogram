@@ -1,128 +1,136 @@
 #!/bin/sh
 
-WORKING_DIR=`mktemp -d`
-trap "rm -rf $WORKING_DIR 2>/dev/null" 0 1 2 3 15
-
-cat <<\EOF > $WORKING_DIR/main.pl
-
-use POSIX qw(floor ceil);
-
-my @data = ();
-
-while (my $line = <STDIN>) {
-    if ($line =~ /\A\s*([-.0-9]+)/) {
-        push(@data, $1 + 0.0);
-    }
-}
-
-my $min;
-my $max;
-foreach (@data) {
-    if (defined $min) {
-        if ($min > $_) {
-            $min = $_;
-        } elsif ($max < $_) {
-            $max = $_;
-        }
-    } else {
-        $min = $_;
-        $max = $_;
-    }
-}
-
-sub get_h_exp {
-    my ($arg) = @_;
-    my $sign = 1;
-    if ($arg < 0) {
-        $sign = -1;
-        $arg = -$arg;
-    }
-    if ($arg == 0.0) {
-        return (0.0, -100);
-    }
-    my $exp = 0;
-    while ($arg >= 10.0) {
-        $arg = $arg / 10.0;
-        $exp = $exp + 1;
-    }
-    while ($arg < 1.0 && $exp >= -100) {
-        $arg = $arg * 10.0;
-        $exp = $exp - 1;
-    }
-    ($sign * $arg, $exp);
-}
-
-sub get_interval {
-    my ($min, $max) = @_;
-    my ($min_h, $min_e) = get_h_exp($min);
-    my ($max_h, $max_e) = get_h_exp($max);
-
-    while ($min_e < $max_e) {
-        $min_h = $min_h / 10.0;
-        $min_e = $min_e + 1;
-    }
-    while ($min_e > $max_e) {
-        $max_h = $max_h / 10.0;
-        $max_e = $max_e + 1;
-    }
-    $exp = $min_e;
-    my $min_a = floor($min_h);
-    my $max_a = ceil($max_h);
-    my $interval;
-    if ($max_a - $min_a > 8) {
-        $interval = 0.5;
-    } elsif ($max_a - $min_a > 4) {
-        $interval = 0.2;
-    } elsif ($max_a - $min_a > 2) {
-        $interval = 0.1;
-    } else {
-        $interval = 0.05;
-    }
-    while ($exp > 0) {
-        $min_a = $min_a * 10.0;
-        $max_a = $max_a * 10.0;
-        $interval = $interval * 10.0;
-        $exp = $exp - 1;
-    }
-    while ($exp < 0) {
-        $min_a = $min_a / 10.0;
-        $max_a = $max_a / 10.0;
-        $interval = $interval / 10.0;
-        $exp = $exp + 1;
-    }
-    ($min_a, $max_a, $interval);
-}
-
-sub get_index {
-    my ($min, $max, $interval, $x) = @_;
-    floor(($x - $min) / $interval);
-}
-
-sub get_mid_value {
-    my ($min, $max, $interval, $index) = @_;
-    $min + $interval * ($index + 0.5);
-}
-
-my $interval;
-($min, $max, $interval) = get_interval($min, $max);
-my $count = ($max - $min) / $interval;
-
-my @result = (0) * ($count);
-foreach (@data) {
-    my $i = get_index($min, $max, $interval, $_);
-    $result[$i] = $result[$i] + 1;
-}
-
-for (my $i = 0; $i < $count; $i++) {
-    my $v = get_mid_value($min, $max, $interval, $i);
-    my $h = $result[$i];
-    if ($h == 0) {
-        $h = "0";
-    }
-    print "$v $h\n";
-}
-
-EOF
+while [ "$#" != 0 ]; do
+    if [ "$1" = '--help' ]; then
+        echo "Usage: histogram"
+        exit
+    else
+        echo "Unknown argument: $1" >&2
+        exit 1
+    fi
+    shift
+done
 
 perl $WORKING_DIR/main.pl
+
+##file main.pl <<EOF
+
+    use POSIX qw(floor ceil);
+
+    my @data = ();
+
+    while (my $line = <STDIN>) {
+        if ($line =~ /\A\s*([-.0-9]+)/) {
+            push(@data, $1 + 0.0);
+        }
+    }
+
+    my $min;
+    my $max;
+    foreach (@data) {
+        if (defined $min) {
+            if ($min > $_) {
+                $min = $_;
+            } elsif ($max < $_) {
+                $max = $_;
+            }
+        } else {
+            $min = $_;
+            $max = $_;
+        }
+    }
+
+    sub get_h_exp {
+        my ($arg) = @_;
+        my $sign = 1;
+        if ($arg < 0) {
+            $sign = -1;
+            $arg = -$arg;
+        }
+        if ($arg == 0.0) {
+            return (0.0, -100);
+        }
+        my $exp = 0;
+        while ($arg >= 10.0) {
+            $arg = $arg / 10.0;
+            $exp = $exp + 1;
+        }
+        while ($arg < 1.0 && $exp >= -100) {
+            $arg = $arg * 10.0;
+            $exp = $exp - 1;
+        }
+        ($sign * $arg, $exp);
+    }
+
+    sub get_interval {
+        my ($min, $max) = @_;
+        my ($min_h, $min_e) = get_h_exp($min);
+        my ($max_h, $max_e) = get_h_exp($max);
+
+        while ($min_e < $max_e) {
+            $min_h = $min_h / 10.0;
+            $min_e = $min_e + 1;
+        }
+        while ($min_e > $max_e) {
+            $max_h = $max_h / 10.0;
+            $max_e = $max_e + 1;
+        }
+        $exp = $min_e;
+        my $min_a = floor($min_h);
+        my $max_a = ceil($max_h);
+        my $interval;
+        if ($max_a - $min_a > 8) {
+            $interval = 0.5;
+        } elsif ($max_a - $min_a > 4) {
+            $interval = 0.2;
+        } elsif ($max_a - $min_a > 2) {
+            $interval = 0.1;
+        } else {
+            $interval = 0.05;
+        }
+        while ($exp > 0) {
+            $min_a = $min_a * 10.0;
+            $max_a = $max_a * 10.0;
+            $interval = $interval * 10.0;
+            $exp = $exp - 1;
+        }
+        while ($exp < 0) {
+            $min_a = $min_a / 10.0;
+            $max_a = $max_a / 10.0;
+            $interval = $interval / 10.0;
+            $exp = $exp + 1;
+        }
+        ($min_a, $max_a, $interval);
+    }
+
+    sub get_index {
+        my ($min, $max, $interval, $x) = @_;
+        floor(($x - $min) / $interval);
+    }
+
+    sub get_mid_value {
+        my ($min, $max, $interval, $index) = @_;
+        $min + $interval * ($index + 0.5);
+    }
+
+    my $interval;
+    ($min, $max, $interval) = get_interval($min, $max);
+    my $count = ($max - $min) / $interval;
+
+    my @result = (0) * ($count);
+    foreach (@data) {
+        my $i = get_index($min, $max, $interval, $_);
+        $result[$i] = $result[$i] + 1;
+    }
+
+    for (my $i = 0; $i < $count; $i++) {
+        my $v = get_mid_value($min, $max, $interval, $i);
+        my $h = $result[$i];
+        if ($h == 0) {
+            $h = "0";
+        }
+        print "$v $h\n";
+    }
+
+EOF
 
