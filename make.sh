@@ -41,6 +41,7 @@ copy_cmd random-str
 copy_cmd random-uniform
 copy_cmd scan
 copy_cmd ssv2tsv
+copy_cmd statistics
 copy_cmd tsvaddnum
 copy_cmd tsvset
 copy_cmd trimhtml

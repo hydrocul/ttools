@@ -1,0 +1,91 @@
+#!/bin/sh
+
+HEADER=
+while [ "$#" != 0 ]; do
+    if [ "$1" = '--help' ]; then
+        echo "Usage: statistics"
+        exit
+    elif [ "$1" = '--header' ]; then
+        HEADER=$2
+        shift
+    else
+        echo "Unknown argument: $1" >&2
+        exit 1
+    fi
+    shift
+done
+
+python2 $WORKING_DIR/main.py "$HEADER"
+
+##file main.py <<EOF_MAIN_PY
+
+    import sys
+
+    colnames = False
+
+    if sys.argv[1]:
+        colnames = sys.argv[1].split(",")
+
+    records = []
+    for line in sys.stdin:
+        if line[-1] == "\n":
+            line = line[0:-1]
+        cols = line.split("\t")
+        if colnames == False:
+            colnames = cols
+        else:
+            record = []
+            for i in range(len(colnames)):
+                record.append(float(cols[i]))
+            records.append(record)
+
+    if colnames == False:
+        sys.stderr.write("empty data\n")
+        sys.exit(1)
+
+    avg = []
+    for i in range(len(colnames)):
+        s = 0.0
+        for record in records:
+            s += record[i]
+        s /= len(records)
+        avg.append(s)
+
+    cov = []
+    for i in range(len(colnames)):
+        cov.append([])
+        for j in range(i + 1):
+            s = 0.0
+            for record in records:
+                s += (record[i] - avg[i]) * (record[j] - avg[j])
+            s /= len(records)
+            cov[i].append(s)
+        for j in range(i):
+            cov[i].append(0.0)
+
+    for i in range(len(colnames)):
+        for j in range(i):
+            cov[j][i] = cov[i][j]
+
+    sys.stdout.write("average:\n")
+    for i in range(len(colnames)):
+        if i > 0:
+            sys.stdout.write("\t")
+        sys.stdout.write(str(avg[i]))
+    sys.stdout.write("\n")
+
+    sys.stdout.write("\n")
+
+    sys.stdout.write("variance-covariance matrix:\n")
+    for i in range(len(colnames)):
+        for j in range(len(colnames)):
+            if j > 0:
+                sys.stdout.write("\t")
+            sys.stdout.write(str(cov[i][j]))
+        sys.stdout.write("\n")
+    sys.stdout.write("\n")
+
+    #print records
+
+EOF_MAIN_PY
+
