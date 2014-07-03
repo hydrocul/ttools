@@ -25,28 +25,16 @@ copy_cmd()
 
 copy_cmd ttr
 
-copy_cmd csv2tsv
-copy_cmd gc-linechart
-copy_cmd git-amend-past-commit
-copy_cmd git-show-commit-message
-copy_cmd gitf
-copy_cmd gitl
-copy_cmd gplot2
-copy_cmd histogram
-copy_cmd index-of
-copy_cmd lstsv
-copy_cmd random-normal
-copy_cmd random-poisson
-copy_cmd random-str
-copy_cmd random-uniform
-copy_cmd scan
-copy_cmd ssv2tsv
-copy_cmd statistics
-copy_cmd tsvaddnum
-copy_cmd tsvset
-copy_cmd trimhtml
-copy_cmd vbopen
+for f in `ls src`; do
+    if [ -f src/$f -a $f != ttr -a $f != ttr-bootstrap ]; then
+        if ! echo $f | grep '\.' >/dev/null; then
+            copy_cmd $f
+        fi
+    fi
+done
 
 rm bin/scanx 2>/dev/null
 rm bin/parj 2>/dev/null
+
+exit 0
 
