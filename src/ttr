@@ -132,7 +132,11 @@ sub create_heredoc_sh {
         die "DEBUG $filename";
     }
     push(@result_lines, "fi");
-    push(@result_lines, "ln -f -s \$HOME/.ttr/$output_fname \$WORKING_DIR/$filename");
+    if ($attached_file->{'copy_flag'}) {
+        push(@result_lines, "cp \$HOME/.ttr/$output_fname \$WORKING_DIR/$filename");
+    } else {
+        push(@result_lines, "ln -f -s \$HOME/.ttr/$output_fname \$WORKING_DIR/$filename");
+    }
     \@result_lines;
 }
 
@@ -238,9 +242,19 @@ sub process_macro_lines_rest {
         die "Missing argument of \`##file\`\n";
     } elsif ($line =~ /\A\s*##file\s+(.*)\z/) {
         my ($args, $heredoc_marker) = parse_args($1);
-        my $fname = validate_filename($args->[0]);
+        my $fname = undef;
+        my $copy_flag = undef;
+        while (@$args) {
+            my $a = shift(@$args);
+            if ($a eq '--copy') {
+                $copy_flag = 1;
+            } elsif (!defined $fname) {
+                $fname = validate_filename($a);
+            }
+        }
+        die "Missing argument of \`##file\`\n" if (!defined($fname));
         my ($attached_files, $rest_lines) = process_macro_include_file(
-            $fname, $heredoc_marker, \@rest_lines);
+            $fname, $copy_flag, $heredoc_marker, \@rest_lines);
         @attached_files = @$attached_files;
         @rest_lines = @$rest_lines;
         $dirty = 1;
@@ -346,7 +360,7 @@ sub remove_indent {
 }
 
 sub process_macro_include_file {
-    my ($filename, $heredoc_marker, $rest_lines) = @_;
+    my ($filename, $copy_flag, $heredoc_marker, $rest_lines) = @_;
     my $include_lines;
     if (defined $heredoc_marker) {
         my $ext;
@@ -362,9 +376,9 @@ sub process_macro_include_file {
     }
     if ($filename =~ /\.sh\z/) {
         my ($body, $attached_files, $dirty) = process_macro_lines($include_lines);
-        ([{'name' => $filename, 'body' => $body}, @$attached_files], $rest_lines);
+        ([{'name' => $filename, 'body' => $body, 'copy_flag' => $copy_flag}, @$attached_files], $rest_lines);
     } else {
-        ([{'name' => $filename, 'body' => $include_lines}], $rest_lines);
+        ([{'name' => $filename, 'body' => $include_lines, 'copy_flag' => $copy_flag}], $rest_lines);
     }
 }
 
