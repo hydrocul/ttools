@@ -18,10 +18,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-68979e2365119364ed4978791193978d ]; then
-    touch $HOME/.ttr/file-68979e2365119364ed4978791193978d
+if [ -e $HOME/.ttr/file-efd0b83ffc56443aa6dcdbdd45402c28 ]; then
+    touch $HOME/.ttr/file-efd0b83ffc56443aa6dcdbdd45402c28
 else
-cat <<\EOF_68979e2365119364ed4978791193978d > $HOME/.ttr/file-68979e2365119364ed4978791193978d
+cat <<\EOF_efd0b83ffc56443aa6dcdbdd45402c28 > $HOME/.ttr/file-efd0b83ffc56443aa6dcdbdd45402c28
 use strict;
 use warnings;
 use utf8;
@@ -228,7 +228,12 @@ sub process_macro_lines_rest {
     my @result_lines = ();
     my @attached_files = ();
     my $dirty = undef;
-    if ($line =~ /\A\s*##file\s+(.*)\z/) {
+    if ($line =~ /\A\s*##working-dir\z/ || $line =~ /\A\s*##working-dir\s+(.*)\z/) {
+        $needs_working_dir = 1;
+        $dirty = 1;
+    } elsif ($line =~ /\A\s*##file\z/) {
+        die "Missing argument of \`##file\`\n";
+    } elsif ($line =~ /\A\s*##file\s+(.*)\z/) {
         my ($args, $heredoc_marker) = parse_args($1);
         my $fname = validate_filename($args->[0]);
         my ($attached_files, $rest_lines) = process_macro_include_file(
@@ -236,6 +241,8 @@ sub process_macro_lines_rest {
         @attached_files = @$attached_files;
         @rest_lines = @$rest_lines;
         $dirty = 1;
+    } elsif ($line =~ /\A\s*##scala\z/) {
+        die "Missing argument of \`##scala\`\n";
     } elsif ($line =~ /\A\s*##scala\s+(.*)\z/) {
         my ($args, $heredoc_marker) = parse_args($1);
         my $jar_fname = undef;
@@ -679,9 +686,9 @@ if ($build_flag) {
     }
 }
 
-EOF_68979e2365119364ed4978791193978d
+EOF_efd0b83ffc56443aa6dcdbdd45402c28
 fi
-ln -f -s $HOME/.ttr/file-68979e2365119364ed4978791193978d $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-efd0b83ffc56443aa6dcdbdd45402c28 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 
