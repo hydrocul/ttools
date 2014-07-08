@@ -1,16 +1,13 @@
 #!/bin/sh
-if [ -z "$WORKING_DIR" ]; then
-    if [ -z "$UID" ]; then
-        UID=`id -u`
-    fi
-    if [ -d /run/user/$UID ]; then
-        export WORKING_DIR=`mktemp -d -p /run/user/$UID`
-    elif [ -d /dev/shm ]; then
-        export WORKING_DIR=`mktemp -d -p /dev/shm`
-    else
-        export WORKING_DIR=`mktemp -d`
-    fi
-    RM_WORKING_DIR=1
+if [ -z "$UID" ]; then
+    UID=`id -u`
+fi
+if [ -d /run/user/$UID ]; then
+    export WORKING_DIR=`mktemp -d -p /run/user/$UID`
+elif [ -d /dev/shm ]; then
+    export WORKING_DIR=`mktemp -d -p /dev/shm`
+else
+    export WORKING_DIR=`mktemp -d`
 fi
 trap ":" 2 3 15
 (
@@ -18,10 +15,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-b6d5260c24486a77c6c1089bfe66b440 ]; then
-    touch $HOME/.ttr/file-b6d5260c24486a77c6c1089bfe66b440
+if [ -e $HOME/.ttr/file-fd191ae4d2446ed4e386c158dca9a8b1 ]; then
+    touch $HOME/.ttr/file-fd191ae4d2446ed4e386c158dca9a8b1
 else
-cat <<\EOF_b6d5260c24486a77c6c1089bfe66b440 > $HOME/.ttr/file-b6d5260c24486a77c6c1089bfe66b440
+cat <<\EOF_fd191ae4d2446ed4e386c158dca9a8b1 > $HOME/.ttr/file-fd191ae4d2446ed4e386c158dca9a8b1
 use strict;
 use warnings;
 use utf8;
@@ -155,39 +152,30 @@ sub wrap_working_dir {
     my @last_lines = ();
     if ($needs_working_dir) {
         if ($cross_flag) {
-            push(@first_lines, "if [ -z \"\$WORKING_DIR\" ]; then");
-            push(@first_lines, "    if [ -z \"\$UID\" ]; then");
-            push(@first_lines, "        UID=\`id -u\`");
-            push(@first_lines, "    fi");
-            push(@first_lines, "    if [ -d /run/user/\$UID ]; then");
-            push(@first_lines, "        export WORKING_DIR=\`mktemp -d -p /run/user/\$UID\`");
-            push(@first_lines, "    elif [ -d /dev/shm ]; then");
-            push(@first_lines, "        export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
-            push(@first_lines, "    else");
-            push(@first_lines, "        export WORKING_DIR=\`mktemp -d\`");
-            push(@first_lines, "    fi");
-            push(@first_lines, "    RM_WORKING_DIR=1");
+            push(@first_lines, "if [ -z \"\$UID\" ]; then");
+            push(@first_lines, "    UID=\`id -u\`");
+            push(@first_lines, "fi");
+            push(@first_lines, "if [ -d /run/user/\$UID ]; then");
+            push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /run/user/\$UID\`");
+            push(@first_lines, "elif [ -d /dev/shm ]; then");
+            push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
+            push(@first_lines, "else");
+            push(@first_lines, "    export WORKING_DIR=\`mktemp -d\`");
             push(@first_lines, "fi");
         } else {
             my $uid = `id -u`;
             $uid =~ s/\A(.*?)\s*\z/$1/;
-            push(@first_lines, "if [ -z \"\$WORKING_DIR\" ]; then");
             if (-d "/run/user/$uid") {
-                push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /run/user/$uid\`");
+                push(@first_lines, "export WORKING_DIR=\`mktemp -d -p /run/user/$uid\`");
             } elsif (-d "/dev/shm") {
-                push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
+                push(@first_lines, "export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
             } else {
-                push(@first_lines, "    export WORKING_DIR=\`mktemp -d\`");
+                push(@first_lines, "export WORKING_DIR=\`mktemp -d\`");
             }
-            push(@first_lines, "    RM_WORKING_DIR=1");
-            push(@first_lines, "fi");
         }
     }
     if ($needs_working_dir_hard) {
-        push(@first_lines, "if [ -z \"\$HARD_WORKING_DIR\" ]; then");
-        push(@first_lines, "    export HARD_WORKING_DIR=\`mktemp -d\`");
-        push(@first_lines, "    RM_HARD_WORKING_DIR=1");
-        push(@first_lines, "fi");
+        push(@first_lines, "export HARD_WORKING_DIR=\`mktemp -d\`");
     }
     push(@first_lines, 'trap ":" 2 3 15');
     push(@first_lines, "(");
@@ -195,14 +183,10 @@ sub wrap_working_dir {
     push(@last_lines, ")");
     push(@last_lines, "RET=\$?");
     if ($needs_working_dir_hard) {
-        push(@last_lines, "if [ -n \"\$RM_HARD_WORKING_DIR\" ]; then");
-        push(@last_lines, "    rm -rf \$HARD_WORKING_DIR 2>/dev/null");
-        push(@last_lines, "fi");
+        push(@last_lines, "rm -rf \$HARD_WORKING_DIR 2>/dev/null");
     }
     if ($needs_working_dir) {
-        push(@last_lines, "if [ -n \"\$RM_WORKING_DIR\" ]; then");
-        push(@last_lines, "    rm -rf \$WORKING_DIR 2>/dev/null");
-        push(@last_lines, "fi");
+        push(@last_lines, "rm -rf \$WORKING_DIR 2>/dev/null");
     }
     push(@last_lines, "exit \$RET");
     [@first_lines, "", @$lines, "", @last_lines];
@@ -700,9 +684,9 @@ if ($build_flag) {
     }
 }
 
-EOF_b6d5260c24486a77c6c1089bfe66b440
+EOF_fd191ae4d2446ed4e386c158dca9a8b1
 fi
-ln -f -s $HOME/.ttr/file-b6d5260c24486a77c6c1089bfe66b440 $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-fd191ae4d2446ed4e386c158dca9a8b1 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 
@@ -732,7 +716,5 @@ perl $WORKING_DIR/ttr.pl "$@"
 ################################################################################
 )
 RET=$?
-if [ -n "$RM_WORKING_DIR" ]; then
-    rm -rf $WORKING_DIR 2>/dev/null
-fi
+rm -rf $WORKING_DIR 2>/dev/null
 exit $RET
