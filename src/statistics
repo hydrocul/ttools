@@ -20,6 +20,7 @@ python2 $WORKING_DIR/main.py "$HEADER"
 ##file main.py <<EOF_MAIN_PY
 
     import sys
+    import math
 
     colnames = False
 
@@ -43,11 +44,13 @@ python2 $WORKING_DIR/main.py "$HEADER"
         sys.stderr.write("empty data\n")
         sys.exit(1)
 
+    sum = []
     avg = []
     for i in range(len(colnames)):
         s = 0.0
         for record in records:
             s += record[i]
+        sum.append(s)
         s /= len(records)
         avg.append(s)
 
@@ -67,6 +70,21 @@ python2 $WORKING_DIR/main.py "$HEADER"
         for j in range(i):
             cov[j][i] = cov[i][j]
 
+    sys.stdout.write("count:\n")
+    sys.stdout.write(str(len(records)))
+    sys.stdout.write("\n")
+
+    sys.stdout.write("\n")
+
+    sys.stdout.write("summation:\n")
+    for i in range(len(colnames)):
+        if i > 0:
+            sys.stdout.write("\t")
+        sys.stdout.write(str(sum[i]))
+    sys.stdout.write("\n")
+
+    sys.stdout.write("\n")
+
     sys.stdout.write("average:\n")
     for i in range(len(colnames)):
         if i > 0:
@@ -82,6 +100,15 @@ python2 $WORKING_DIR/main.py "$HEADER"
             if j > 0:
                 sys.stdout.write("\t")
             sys.stdout.write(str(cov[i][j]))
+        sys.stdout.write("\n")
+    sys.stdout.write("\n")
+
+    sys.stdout.write("sqrt of variance-covariance matrix:\n")
+    for i in range(len(colnames)):
+        for j in range(len(colnames)):
+            if j > 0:
+                sys.stdout.write("\t")
+            sys.stdout.write(str(math.sqrt(cov[i][j])))
         sys.stdout.write("\n")
     sys.stdout.write("\n")
 
