@@ -1,0 +1,34 @@
+#!/bin/sh
+
+TARGET_DIR=
+SEPARATOR=:
+while [ "$#" != 0 ]; do
+    if [ "$1" = '--help' ]; then
+        echo "Usage: find-jar [<dir>] [--separator <separator>]"
+        exit
+    elif [ "$1" = '--separator' ]; then
+        SEPARATOR=$2
+        shift
+    elif [ -z "$TARGET_DIR" ]; then
+        TARGET_DIR=$1
+    else
+        echo "Unknown argument: $1" >&2
+        exit 1
+    fi
+    shift
+done
+
+if [ -z "$TARGET_DIR" ]; then
+    TARGET_DIR=.
+fi
+
+export SEPARATOR_ESCAPED=`echo "$SEPARATOR" | perl -nle 's/([^0-9a-zA-Z])/"%".unpack("H2",$1)/eg; s/%/\\\\x/g; print'`
+
+find $TARGET_DIR -name "*.jar" | awk '{print "sh $WORKING_DIR/ls-in-jar.sh " $0}' | sh
+
+##file ls-in-jar.sh <<EOF_LS_IN_JAR
+
+jar -tf $1 | perl -nle "print \"$1$SEPARATOR_ESCAPED\$_\""
+
+EOF_LS_IN_JAR
+
