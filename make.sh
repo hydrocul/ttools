@@ -11,12 +11,13 @@ copy_cmd()
     if [ ! -x bin/$NAME -o src/$NAME -nt bin/$NAME -o src/ttr -nt bin/$NAME ]; then
         echo "build $NAME"
         if [ "$NAME" = "ttr" ]; then
-            sh src/ttr-bootstrap --build --cross --include src src/$NAME > tmp/$NAME || exit 1
-            chmod 755 tmp/$NAME || exit 1
-            ./tmp/ttr --build --cross --include src src/$NAME > tmp/build-$NAME || exit 1
+            sh src/ttr-bootstrap --build --cross --include src src/ttr > tmp/ttr || exit 1
+            chmod 755 tmp/ttr || exit 1
+            ./tmp/ttr --build --cross --include src src/ttr > tmp/build-ttr || exit 1
+            diff ./tmp/ttr ./tmp/build-ttr || exit 1
             rm tmp/ttr
-            mv tmp/build-$NAME bin/$NAME
-            cp bin/$NAME src/ttr-bootstrap
+            mv tmp/build-ttr bin/ttr
+            cp bin/ttr src/ttr-bootstrap
         else
             ./bin/ttr --build --cross --include src src/$NAME > tmp/build-$NAME || exit 1
             mv tmp/build-$NAME bin/$NAME
