@@ -1,0 +1,15 @@
+#!/bin/sh
+
+scala -cp $WORKING_DIR/main.jar Main
+
+##scala --wrap Main --jar main.jar <<EOF
+
+val s = (1 until 8).foldLeft((math.random * 128).asInstanceOf[Long])((a, i) => a * 256 + (math.random * 256).asInstanceOf[Long]);
+
+print("@SerialVersionUID(");
+print(s);
+print("L");
+print(")\n");
+
+EOF
+
