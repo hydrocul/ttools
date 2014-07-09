@@ -21,10 +21,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-856a46473f63c1d6a7b722fe2c20abf4 ]; then
-    touch $HOME/.ttr/file-856a46473f63c1d6a7b722fe2c20abf4
+if [ -e $HOME/.ttr/file-087881819b6927fc8112068e63c8ffcf ]; then
+    touch $HOME/.ttr/file-087881819b6927fc8112068e63c8ffcf
 else
-cat <<\EOF_856a46473f63c1d6a7b722fe2c20abf4 > $HOME/.ttr/file-856a46473f63c1d6a7b722fe2c20abf4
+cat <<\EOF_087881819b6927fc8112068e63c8ffcf > $HOME/.ttr/file-087881819b6927fc8112068e63c8ffcf
 use strict;
 use warnings;
 use utf8;
@@ -41,6 +41,7 @@ my $HOME = $ENV{'HOME'};
 
 my $include_path = ".";
 my $cross_flag = undef;
+my $subttr_flag = undef;
 
 my $needs_working_dir = undef;
 my $needs_working_dir_hard = undef;
@@ -103,35 +104,39 @@ sub create_heredoc_sh {
     } else {
         die "DEBUG $filename";
     }
-    push(@result_lines, "mkdir -p \$HOME/.ttr");
-    push(@result_lines, "if [ -e \$HOME/.ttr/$output_fname ]; then");
-    push(@result_lines, "    touch \$HOME/.ttr/$output_fname");
-    push(@result_lines, "else");
-    if ($attached_file->{'body'}) {
-        my $lines = $attached_file->{'body'};
-        push(@result_lines, "cat <<\\EOF_$hash > \$HOME/.ttr/$output_fname");
-        push(@result_lines, @$lines);
-        push(@result_lines, "EOF_$hash");
-    } elsif ($attached_file->{'binary_path'}) {
-        my $path = $attached_file->{'binary_path'};
-        push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
-        open(FP, "-|", "cat $path | base64");
-        my @lines = (<FP>);
-        close(FP);
-        push(@result_lines, @{remove_end_of_line(\@lines)});
-        push(@result_lines, "EOF_$hash");
-    } elsif ($attached_file->{'output_fname'}) {
-        my $path = "$HOME/.ttr/$output_fname";
-        push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
-        open(FP, "-|", "cat $path | base64");
-        my @lines = (<FP>);
-        close(FP);
-        push(@result_lines, @{remove_end_of_line(\@lines)});
-        push(@result_lines, "EOF_$hash");
+    if ($subttr_flag) {
+        push(@result_lines, "touch \$HOME/.ttr/$output_fname");
     } else {
-        die "DEBUG $filename";
+        push(@result_lines, "mkdir -p \$HOME/.ttr");
+        push(@result_lines, "if [ -e \$HOME/.ttr/$output_fname ]; then");
+        push(@result_lines, "    touch \$HOME/.ttr/$output_fname");
+        push(@result_lines, "else");
+        if ($attached_file->{'body'}) {
+            my $lines = $attached_file->{'body'};
+            push(@result_lines, "cat <<\\EOF_$hash > \$HOME/.ttr/$output_fname");
+            push(@result_lines, @$lines);
+            push(@result_lines, "EOF_$hash");
+        } elsif ($attached_file->{'binary_path'}) {
+            my $path = $attached_file->{'binary_path'};
+            push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
+            open(FP, "-|", "cat $path | base64");
+            my @lines = (<FP>);
+            close(FP);
+            push(@result_lines, @{remove_end_of_line(\@lines)});
+            push(@result_lines, "EOF_$hash");
+        } elsif ($attached_file->{'output_fname'}) {
+            my $path = "$HOME/.ttr/$output_fname";
+            push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
+            open(FP, "-|", "cat $path | base64");
+            my @lines = (<FP>);
+            close(FP);
+            push(@result_lines, @{remove_end_of_line(\@lines)});
+            push(@result_lines, "EOF_$hash");
+        } else {
+            die "DEBUG $filename";
+        }
+        push(@result_lines, "fi");
     }
-    push(@result_lines, "fi");
     if ($attached_file->{'copy_flag'}) {
         push(@result_lines, "cp \$HOME/.ttr/$output_fname \$WORKING_DIR/$filename");
     } else {
@@ -157,7 +162,10 @@ sub wrap_working_dir {
     my @first_lines = ();
     my @last_lines = ();
     if ($needs_working_dir) {
-        if ($cross_flag) {
+        if ($subttr_flag) {
+            push(@first_lines, "export WORKING_DIR=\$WORKING_DIR/working-\$\$");
+            push(@first_lines, "mkdir \$WORKING_DIR");
+        } elsif ($cross_flag) {
             push(@first_lines, "if [ -z \"\$WORKING_DIR\" ]; then");
             push(@first_lines, "    if [ -z \"\$UID\" ]; then");
             push(@first_lines, "        UID=\`id -u\`");
@@ -575,6 +583,8 @@ while () {
         $cross_flag = 1;
     } elsif ($arg eq "-x") {
         $embedded_mode = 1;
+    } elsif ($arg eq "--subttr") {
+        $subttr_flag = 1;
     } elsif ($input_file eq "") {
         $input_file = $arg;
     } elsif ($arg eq "--") {
@@ -702,9 +712,9 @@ if ($build_flag) {
     }
 }
 
-EOF_856a46473f63c1d6a7b722fe2c20abf4
+EOF_087881819b6927fc8112068e63c8ffcf
 fi
-ln -f -s $HOME/.ttr/file-856a46473f63c1d6a7b722fe2c20abf4 $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-087881819b6927fc8112068e63c8ffcf $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 
