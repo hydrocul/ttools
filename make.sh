@@ -35,8 +35,62 @@ for f in `ls src`; do
     fi
 done
 
-rm bin/scanx 2>/dev/null
-rm bin/parj 2>/dev/null
+mkdir -p test/ttr/actual
 
-exit 0
+RESULT=0
+for f in `ls test/ttr/cases`; do
+
+    r=0
+
+    if [ "$r" = 0 ]; then
+        cat test/ttr/cases/$f | ttr --build --cross --include src > test/ttr/actual/$f.translated.1
+        if ! diff test/ttr/expected/$f.translated test/ttr/actual/$f.translated.1 >/dev/null; then
+            r=1
+            /bin/echo -e "\e[31m./ttr/cases/$f NG\e[0m"
+            diff -u test/ttr/expected/$f.translated test/ttr/actual/$f.translated.1
+        fi
+    fi
+
+    if [ "$r" = 0 ]; then
+        ttr test/ttr/cases/$f --build --cross --include src > test/ttr/actual/$f.translated.2
+        if ! diff test/ttr/expected/$f.translated test/ttr/actual/$f.translated.2 >/dev/null; then
+            r=1
+            /bin/echo -e "\e[31m./ttr/cases/$f NG\e[0m"
+            diff -u test/ttr/expected/$f.translated test/ttr/actual/$f.translated.2
+        fi
+    fi
+
+    if [ "$r" = 0 ]; then
+        cat test/ttr/cases/$f | ttr --include src > test/ttr/actual/$f.result.1
+        if ! diff test/ttr/expected/$f.result test/ttr/actual/$f.result.1 >/dev/null; then
+            r=1
+            /bin/echo -e "\e[31m./ttr/cases/$f NG\e[0m"
+            diff -u test/ttr/expected/$f.result test/ttr/actual/$f.result.1
+        fi
+    fi
+
+    if [ "$r" = 0 ]; then
+        ttr test/ttr/cases/$f --include src > test/ttr/actual/$f.result.2
+        if ! diff test/ttr/expected/$f.result test/ttr/actual/$f.result.2 >/dev/null; then
+            r=1
+            /bin/echo -e "\e[31m./ttr/cases/$f NG\e[0m"
+            diff -u test/ttr/expected/$f.result test/ttr/actual/$f.result.2
+        fi
+    fi
+
+    if [ "$r" = 0 ]; then
+        /bin/echo -e "\e[34m./ttr/cases/$f OK\e[0m"
+    else
+        RESULT=1
+    fi
+
+done
+
+if [ "$RESULT" = 0 ]; then
+    /bin/echo -e "\e[34mSucceeded.\e[0m"
+else
+    /bin/echo -e "\e[31mFailed.\e[0m"
+fi
+
+exit $RESULT
 

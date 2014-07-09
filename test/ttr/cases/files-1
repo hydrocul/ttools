@@ -1,0 +1,10 @@
+#!/bin/sh
+
+##file message.txt <<EOF
+
+Hello World!
+
+EOF
+
+cat $WORKING_DIR/message.txt
+
