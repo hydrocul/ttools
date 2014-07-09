@@ -1,0 +1,42 @@
+#!/bin/sh
+if [ -z "$WORKING_DIR" ]; then
+    if [ -z "$UID" ]; then
+        UID=`id -u`
+    fi
+    if [ -d /run/user/$UID ]; then
+        export WORKING_DIR=`mktemp -d -p /run/user/$UID`
+    elif [ -d /dev/shm ]; then
+        export WORKING_DIR=`mktemp -d -p /dev/shm`
+    else
+        export WORKING_DIR=`mktemp -d`
+    fi
+else
+    export WORKING_DIR=$WORKING_DIR/working-$$
+    mkdir $WORKING_DIR
+fi
+export HARD_WORKING_DIR=
+trap ":" 2 3 15
+(
+
+################################################################################
+# message.txt
+mkdir -p $HOME/.ttr
+if [ -e $HOME/.ttr/file-2e72ada17773ce9dcac8671801f9daf9 ]; then
+    touch $HOME/.ttr/file-2e72ada17773ce9dcac8671801f9daf9
+else
+cat <<\EOF_2e72ada17773ce9dcac8671801f9daf9 > $HOME/.ttr/file-2e72ada17773ce9dcac8671801f9daf9
+
+Hello World!
+
+EOF_2e72ada17773ce9dcac8671801f9daf9
+fi
+ln -f -s $HOME/.ttr/file-2e72ada17773ce9dcac8671801f9daf9 $WORKING_DIR/message.txt
+
+################################################################################
+ls -a $WORKING_DIR
+
+################################################################################
+)
+RET=$?
+rm -rf $WORKING_DIR 2>/dev/null
+exit $RET
