@@ -158,30 +158,42 @@ sub wrap_working_dir {
     my @last_lines = ();
     if ($needs_working_dir) {
         if ($cross_flag) {
-            push(@first_lines, "if [ -z \"\$UID\" ]; then");
-            push(@first_lines, "    UID=\`id -u\`");
-            push(@first_lines, "fi");
-            push(@first_lines, "if [ -d /run/user/\$UID ]; then");
-            push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /run/user/\$UID\`");
-            push(@first_lines, "elif [ -d /dev/shm ]; then");
-            push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
+            push(@first_lines, "if [ -z \"\$WORKING_DIR\" ]; then");
+            push(@first_lines, "    if [ -z \"\$UID\" ]; then");
+            push(@first_lines, "        UID=\`id -u\`");
+            push(@first_lines, "    fi");
+            push(@first_lines, "    if [ -d /run/user/\$UID ]; then");
+            push(@first_lines, "        export WORKING_DIR=\`mktemp -d -p /run/user/\$UID\`");
+            push(@first_lines, "    elif [ -d /dev/shm ]; then");
+            push(@first_lines, "        export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
+            push(@first_lines, "    else");
+            push(@first_lines, "        export WORKING_DIR=\`mktemp -d\`");
+            push(@first_lines, "    fi");
             push(@first_lines, "else");
-            push(@first_lines, "    export WORKING_DIR=\`mktemp -d\`");
+            push(@first_lines, "    export WORKING_DIR=\$WORKING_DIR/working-\$\$");
+            push(@first_lines, "    mkdir \$WORKING_DIR");
             push(@first_lines, "fi");
         } else {
             my $uid = `id -u`;
             $uid =~ s/\A(.*?)\s*\z/$1/;
+            push(@first_lines, "if [ -z \"\$WORKING_DIR\" ]; then");
             if (-d "/run/user/$uid") {
-                push(@first_lines, "export WORKING_DIR=\`mktemp -d -p /run/user/$uid\`");
+                push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /run/user/$uid\`");
             } elsif (-d "/dev/shm") {
-                push(@first_lines, "export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
+                push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
             } else {
-                push(@first_lines, "export WORKING_DIR=\`mktemp -d\`");
+                push(@first_lines, "    export WORKING_DIR=\`mktemp -d\`");
             }
+            push(@first_lines, "else");
+            push(@first_lines, "    export WORKING_DIR=\$WORKING_DIR/working-\$\$");
+            push(@first_lines, "    mkdir \$WORKING_DIR");
+            push(@first_lines, "fi");
         }
     }
     if ($needs_working_dir_hard) {
         push(@first_lines, "export HARD_WORKING_DIR=\`mktemp -d\`");
+    } else {
+        push(@first_lines, "export HARD_WORKING_DIR=");
     }
     push(@first_lines, 'trap ":" 2 3 15');
     push(@first_lines, "(");
