@@ -607,18 +607,31 @@ if ($input_file eq "-") {
 }
 @input_lines = @{remove_end_of_line(\@input_lines)};
 
-if ($embedded_mode) {
+sub preprocess_lines {
+    my ($input_lines) = @_;
+    $input_lines = preprocess_lines_parse_embedded($input_lines);
+    my $shebang_line;
+    my $shebang_command;
+    ($input_lines, $shebang_line, $shebang_command) = preprocess_lines_shebang($input_lines);
+    ($input_lines, $shebang_line, $shebang_command)
+}
+
+sub preprocess_lines_parse_embedded {
+    my ($input_lines) = @_;
     my @new_input_lines = ();
     my $f = 0;
     my $eof_marker = undef;
-    foreach my $line (@input_lines) {
+    foreach my $line (@$input_lines) {
         if ($f eq 0) {
             if ($line =~ /\A\s*#!ttr\s*(.*)\z/) {
                 my ($args, $heredoc_marker) = parse_args($1);
                 if (defined($heredoc_marker)){
                     $eof_marker = $heredoc_marker;
                 }
+                @new_input_lines = ();
                 $f = 1;
+            } else {
+                push(@new_input_lines, $line);
             }
         } elsif ($f eq 1) {
             if (defined($eof_marker) && $line =~ ('\A\s*' . quotemeta($eof_marker) . '\s*\z')) {
@@ -627,29 +640,33 @@ if ($embedded_mode) {
             push(@new_input_lines, $line);
         }
     }
-    @input_lines = @new_input_lines;
+    \@new_input_lines;
 }
 
-my $head_line = shift(@input_lines);
-my $shebang_command = undef;
-if (defined($head_line)) {
-    if ($head_line =~ /\A#!(\/.+)\z/) {
-        $shebang_command = $1;
-        if ($shebang_command =~ /\A\/[^ ]+sh /) {
-            $shebang_command = undef;
-        } elsif ($shebang_command =~ /\A\/[^ ]+sh\z/) {
-            $shebang_command = undef;
+sub preprocess_lines_shebang {
+    my ($input_lines) = @_;
+    my @input_lines = @$input_lines;
+    my $shebang_line = shift(@input_lines);
+    my $shebang_command = undef;
+    if (defined($shebang_line)) {
+        if      ($shebang_line =~ /\A#!\/[^ ]+sh /) {
+            # nop
+        } elsif ($shebang_line =~ /\A#!\/[^ ]+sh\z/) {
+            # nop
+        } elsif ($shebang_line =~ /\A#!(\/.+)\z/) {
+            $shebang_command = $1;
+            unshift(@input_lines, $shebang_line);
+            $shebang_line = undef;
         } else {
-            unshift(@input_lines, $head_line);
-            $head_line = undef;
+            unshift(@input_lines, $shebang_line);
+            $shebang_line = undef;
         }
-    } else {
-        unshift(@input_lines, $head_line);
-        $head_line = undef;
     }
+    (\@input_lines, $shebang_line, $shebang_command);
 }
 
-if ($shebang_command) {
+sub exec_shebang_command {
+    my ($input_file, $input_lines, $shebang_command, $build_flag) = @_;
     if ($input_file ne "-") {
         my $input_file_escaped = quotemeta($input_file);
         if ($build_flag) {
@@ -677,10 +694,17 @@ if ($shebang_command) {
     }
 }
 
+my ($input_lines, $shebang_line, $shebang_command) = preprocess_lines(\@input_lines);
+@input_lines = @$input_lines;
+
+if ($shebang_command) {
+    exec_shebang_command($input_file, $input_lines, $shebang_command, $build_flag);
+}
+
 my $result = process_main_body(\@input_lines);
 
-if (defined $head_line) {
-    unshift(@$result, $head_line);
+if (defined $shebang_line) {
+    unshift(@$result, $shebang_line);
 }
 
 if ($build_flag) {
