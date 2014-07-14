@@ -18,7 +18,7 @@ copy_cmd()
             sh src/ttr-bootstrap --build --cross --include src src/ttr > tmp/ttr || exit 1
             chmod 755 tmp/ttr || exit 1
             ./tmp/ttr --build --cross --include src src/ttr > tmp/build-ttr || exit 1
-            diff ./tmp/ttr ./tmp/build-ttr || exit 1
+            diff -u ./tmp/ttr ./tmp/build-ttr || exit 1
             rm tmp/ttr
             mv tmp/build-ttr bin/ttr
             cp bin/ttr src/ttr-bootstrap

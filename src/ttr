@@ -565,6 +565,7 @@ sub validate_class_name {
 my $build_flag = undef;
 my $input_file = "";
 my $embedded_mode = undef;
+my $always_sh = undef;
 my @script_args = ();
 my $script_args_flag = undef;
 
@@ -583,6 +584,8 @@ while () {
         $cross_flag = 1;
     } elsif ($arg eq "-x") {
         $embedded_mode = 1;
+    } elsif ($arg eq "--sh") {
+        $always_sh = 1;
     } elsif ($arg eq "--subttr") {
         $subttr_flag = 1;
     } elsif ($input_file eq "") {
@@ -608,12 +611,11 @@ if ($input_file eq "-") {
 @input_lines = @{remove_end_of_line(\@input_lines)};
 
 sub preprocess_lines {
-    my ($input_lines) = @_;
+    my ($input_lines, $always_sh) = @_;
     $input_lines = preprocess_lines_parse_embedded($input_lines);
-    my $shebang_line;
     my $shebang_command;
-    ($input_lines, $shebang_line, $shebang_command) = preprocess_lines_shebang($input_lines);
-    ($input_lines, $shebang_line, $shebang_command)
+    ($input_lines, $shebang_command) = preprocess_lines_shebang($input_lines, $always_sh);
+    ($input_lines, $shebang_command)
 }
 
 sub preprocess_lines_parse_embedded {
@@ -644,26 +646,40 @@ sub preprocess_lines_parse_embedded {
 }
 
 sub preprocess_lines_shebang {
-    my ($input_lines) = @_;
+    my ($input_lines, $always_sh) = @_;
     my @input_lines = @$input_lines;
-    my $shebang_line = shift(@input_lines);
     my $shebang_command = undef;
-    if (defined($shebang_line)) {
+    if (@input_lines > 0) {
+        my $shebang_line = $input_lines[0];
         if      ($shebang_line =~ /\A#!\/[^ ]+sh /) {
             # nop
         } elsif ($shebang_line =~ /\A#!\/[^ ]+sh\z/) {
             # nop
         } elsif ($shebang_line =~ /\A#!(\/.+)\z/) {
             $shebang_command = $1;
-            unshift(@input_lines, $shebang_line);
-            $shebang_line = undef;
-        } else {
-            unshift(@input_lines, $shebang_line);
-            $shebang_line = undef;
+            if ($always_sh) {
+                @input_lines = @{preprocess_lines_wrap_sh(\@input_lines, $shebang_command)};
+                $shebang_command = undef;
+            }
         }
     }
-    (\@input_lines, $shebang_line, $shebang_command);
+    (\@input_lines, $shebang_command);
 }
+
+sub preprocess_lines_wrap_sh {
+    my ($input_lines, $shebang_command) = @_;
+    my @input_lines = ();
+    my $hash = get_lines_hash($input_lines);
+    push(@input_lines, "$shebang_command \$WORKING_DIR/main");
+    push(@input_lines, "##file main <<EOF_$hash");
+    push(@input_lines, @$input_lines);
+    push(@input_lines, "EOF_$hash");
+    \@input_lines;
+}
+
+#sub preprocess_lines_for_subttr {
+#    my ($input_lines, $shebang_line, $shebang_command) = @_;
+#}
 
 sub exec_shebang_command {
     my ($input_file, $input_lines, $shebang_command, $build_flag) = @_;
@@ -690,20 +706,28 @@ sub exec_shebang_command {
             print FH "$_\n" foreach (@input_lines);
             close(FH);
             exec("$shebang_command $script_path_escaped");
+            # TODO 一時ディレクトリの削除が必要
         }
     }
 }
 
-my ($input_lines, $shebang_line, $shebang_command) = preprocess_lines(\@input_lines);
+my ($input_lines, $shebang_command) = preprocess_lines(\@input_lines, $always_sh);
 @input_lines = @$input_lines;
 
 if ($shebang_command) {
     exec_shebang_command($input_file, $input_lines, $shebang_command, $build_flag);
 }
 
-my $result = process_main_body(\@input_lines);
+unless (@input_lines) {
+    exit(0);
+}
 
-if (defined $shebang_line) {
+my $shebang_line = undef;
+if ($input_lines[0] =~ /\A#!\/.+\z/) {
+    $shebang_line = shift(@input_lines);
+}
+my $result = process_main_body(\@input_lines);
+if ($shebang_line) {
     unshift(@$result, $shebang_line);
 }
 
