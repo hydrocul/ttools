@@ -40,6 +40,7 @@ my $separator = "###############################################################
 my $HOME = $ENV{'HOME'};
 
 my $include_path = ".";
+my $script_dir_path = undef;
 my $cross_flag = undef;
 
 my $needs_working_dir = undef;
@@ -535,6 +536,8 @@ sub search_include_file {
     my ($filename) = @_;
     if (-f "$include_path/$filename") {
         "$include_path/$filename";
+    } elsif (defined($script_dir_path) && -f "$script_dir_path/$filename") {
+        "$script_dir_path/$filename";
     } else {
         undef;
     }
@@ -650,6 +653,10 @@ while () {
 }
 
 $input_file = "-" if ($input_file eq "");
+
+if ($input_file ne "-") {
+    $script_dir_path = dirname($input_file);
+}
 
 my @input_lines;
 if ($input_file eq "-") {

@@ -21,10 +21,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-b68c86b62a27b4c0089cbe432e6e12f1 ]; then
-    touch $HOME/.ttr/file-b68c86b62a27b4c0089cbe432e6e12f1
+if [ -e $HOME/.ttr/file-68649de6ac5e7ec0f8f1d9bafc7f8087 ]; then
+    touch $HOME/.ttr/file-68649de6ac5e7ec0f8f1d9bafc7f8087
 else
-cat <<\EOF_b68c86b62a27b4c0089cbe432e6e12f1 > $HOME/.ttr/file-b68c86b62a27b4c0089cbe432e6e12f1
+cat <<\EOF_68649de6ac5e7ec0f8f1d9bafc7f8087 > $HOME/.ttr/file-68649de6ac5e7ec0f8f1d9bafc7f8087
 use strict;
 use warnings;
 use utf8;
@@ -40,6 +40,7 @@ my $separator = "###############################################################
 my $HOME = $ENV{'HOME'};
 
 my $include_path = ".";
+my $script_dir_path = undef;
 my $cross_flag = undef;
 
 my $needs_working_dir = undef;
@@ -535,6 +536,8 @@ sub search_include_file {
     my ($filename) = @_;
     if (-f "$include_path/$filename") {
         "$include_path/$filename";
+    } elsif (defined($script_dir_path) && -f "$script_dir_path/$filename") {
+        "$script_dir_path/$filename";
     } else {
         undef;
     }
@@ -650,6 +653,10 @@ while () {
 }
 
 $input_file = "-" if ($input_file eq "");
+
+if ($input_file ne "-") {
+    $script_dir_path = dirname($input_file);
+}
 
 my @input_lines;
 if ($input_file eq "-") {
@@ -831,9 +838,9 @@ if ($build_flag) {
     }
 }
 
-EOF_b68c86b62a27b4c0089cbe432e6e12f1
+EOF_68649de6ac5e7ec0f8f1d9bafc7f8087
 fi
-ln -f -s $HOME/.ttr/file-b68c86b62a27b4c0089cbe432e6e12f1 $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-68649de6ac5e7ec0f8f1d9bafc7f8087 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 
