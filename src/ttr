@@ -160,6 +160,7 @@ sub wrap_working_dir {
             push(@first_lines, "export WORKING_DIR=\$WORKING_DIR/working-\$\$");
             push(@first_lines, "mkdir \$WORKING_DIR");
         } elsif ($cross_flag) {
+            # TODO uidを取得できない場合の安全対策
             push(@first_lines, "if [ -z \"\$WORKING_DIR\" ]; then");
             push(@first_lines, "    if [ -z \"\$UID\" ]; then");
             push(@first_lines, "        UID=\`id -u\`");
@@ -177,9 +178,9 @@ sub wrap_working_dir {
             push(@first_lines, "fi");
         } else {
             my $uid = `id -u`;
-            $uid =~ s/\A(.*?)\s*\z/$1/;
+            $uid =~ s/\A(.*?)\s*\z/$1/ if (defined($uid));
             push(@first_lines, "if [ -z \"\$WORKING_DIR\" ]; then");
-            if (-d "/run/user/$uid") {
+            if (defined($uid) && -d "/run/user/$uid") {
                 push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /run/user/$uid\`");
             } elsif (-d "/dev/shm") {
                 push(@first_lines, "    export WORKING_DIR=\`mktemp -d -p /dev/shm\`");
@@ -387,6 +388,7 @@ sub process_macro_include_file {
         unless (defined($already)) {
             my $filepath = search_include_file($filename);
             die "Not found: $filename\n" unless (defined $filepath);
+            # TODO 加工の必要がないファイルはメモリに読み込まないように
             open(FP, "<", $filepath) or die "Cannot open $filepath\n";
             $include_lines = [<FP>];
             close(FP);
@@ -472,7 +474,7 @@ sub process_macro_scala {
 
         mkdir("$working_dir/rt-classes") if (! -e "$working_dir/rt-classes");
 
-        my $fork_code = "cd $working_dir/rt-classes";
+        my $fork_code = ":";
         if ($with_runtime) {
             die "SCALA_HOME Not found" unless ($ENV{'SCALA_HOME'});
             $fork_code = "$fork_code; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar || exit 1"
@@ -482,7 +484,7 @@ sub process_macro_scala {
         if ($pid) {
             wait;
         } elsif (defined $pid) {
-            exec("$fork_code; scalac $src_path && jar cf $jar_path .");
+            exec("$fork_code; scalac -d $working_dir/rt-classes $src_path && jar -cf $jar_path -C $working_dir/rt-classes .");
         } else {
             die;
         }
