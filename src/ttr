@@ -41,45 +41,39 @@ my $HOME = $ENV{'HOME'};
 
 my $include_path = ".";
 my $cross_flag = undef;
-my $subttr_flag = undef;
 
 my $needs_working_dir = undef;
 my $needs_working_dir_hard = undef;
 
 my $working_dir;
 
-sub process_main_body {
-    my ($lines) = @_;
-    my ($main_body, $attached_files, $dirty) = process_macro_lines($lines);
-    if ($dirty) {
-        my $final_body = assemble_files($main_body, $attached_files);
-        $final_body;
-    } else {
-        $lines;
-    }
-}
+my $global_attached_files = [];
+# グローバル
+# name, output_fname, hash, (body), (binary_path), (for_subttr), (copy_flag)
+# ttrごとに
+# name, output_fname, (copy_flag)
 
 sub assemble_files {
-    my ($main_body, $attached_files) = @_;
+    my ($main_body, $attached_files, $subttr_flag) = @_;
     my @result_lines = ();
     foreach my $file (@$attached_files) {
-        push(@result_lines, $separator);
-        push(@result_lines, @{create_heredoc_sh($file)});
+        push(@result_lines, $separator) unless ($subttr_flag);
+        push(@result_lines, @{create_heredoc_sh($file, $subttr_flag)});
         push(@result_lines, "");
     }
-    push(@result_lines, $separator);
+    push(@result_lines, $separator) unless ($subttr_flag);
     push(@result_lines, @$main_body);
     if (@$attached_files || $needs_working_dir || $needs_working_dir_hard) {
         @result_lines = @{wrap_working_dir(\@result_lines,
                                            ($needs_working_dir || (scalar @$attached_files)),
                                            $needs_working_dir_hard,
-                                           $cross_flag)};
+                                           $cross_flag, $subttr_flag)};
     }
     \@result_lines;
 }
 
 sub create_heredoc_sh {
-    my ($attached_file) = @_;
+    my ($attached_file, $subttr_flag) = @_;
     my @result_lines = ();
     my $filename = $attached_file->{'name'};
     push(@result_lines, "# $filename");
@@ -87,26 +81,25 @@ sub create_heredoc_sh {
     if ($dirname ne '.') {
         push(@result_lines, "mkdir -p \$WORKING_DIR/$dirname");
     }
-    my $hash;
-    my $output_fname;
-    if ($attached_file->{'body'}) {
-        my $lines = $attached_file->{'body'};
-        $hash = get_lines_hash($lines);
-        $output_fname = "file-$hash";
-    } elsif ($attached_file->{'binary_path'}) {
-        my $path = $attached_file->{'binary_path'};
-        $hash = get_file_hash($path);
-        $output_fname = "file-$hash";
-    } elsif ($attached_file->{'output_fname'}) {
-        $output_fname = $attached_file->{'output_fname'};
-        my $path = "$HOME/.ttr/$output_fname";
-        $hash = get_file_hash($path);
-    } else {
-        die "DEBUG $filename";
-    }
-    if ($subttr_flag) {
-        push(@result_lines, "touch \$HOME/.ttr/$output_fname");
-    } else {
+    my $output_fname = $attached_file->{'output_fname'};
+    my $hash = $attached_file->{'hash'};
+    my $for_subttr = $attached_file->{'for_subttr'};
+#    if ($attached_file->{'body'}) {
+#        my $lines = $attached_file->{'body'};
+#        $hash = get_lines_hash($lines);
+#        $output_fname = "file-$hash";
+#    } elsif ($attached_file->{'binary_path'}) {
+#        my $path = $attached_file->{'binary_path'};
+#        $hash = get_file_hash($path);
+#        $output_fname = "file-$hash";
+#    } elsif ($attached_file->{'output_fname'}) {
+#        $output_fname = $attached_file->{'output_fname'};
+#        my $path = "$HOME/.ttr/$output_fname";
+#        $hash = get_file_hash($path);
+#    } else {
+#        die "DEBUG $filename";
+#    }
+    unless ($subttr_flag) {
         push(@result_lines, "mkdir -p \$HOME/.ttr");
         push(@result_lines, "if [ -e \$HOME/.ttr/$output_fname ]; then");
         push(@result_lines, "    touch \$HOME/.ttr/$output_fname");
@@ -124,7 +117,7 @@ sub create_heredoc_sh {
             close(FP);
             push(@result_lines, @{remove_end_of_line(\@lines)});
             push(@result_lines, "EOF_$hash");
-        } elsif ($attached_file->{'output_fname'}) {
+        } else {
             my $path = "$HOME/.ttr/$output_fname";
             push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
             open(FP, "-|", "cat $path | base64");
@@ -132,12 +125,12 @@ sub create_heredoc_sh {
             close(FP);
             push(@result_lines, @{remove_end_of_line(\@lines)});
             push(@result_lines, "EOF_$hash");
-        } else {
-            die "DEBUG $filename";
         }
         push(@result_lines, "fi");
     }
-    if ($attached_file->{'copy_flag'}) {
+    if ($for_subttr && !$subttr_flag) {
+        # nop
+    } elsif ($attached_file->{'copy_flag'}) {
         push(@result_lines, "cp \$HOME/.ttr/$output_fname \$WORKING_DIR/$filename");
     } else {
         push(@result_lines, "ln -f -s \$HOME/.ttr/$output_fname \$WORKING_DIR/$filename");
@@ -158,7 +151,7 @@ sub get_file_hash {
 }
 
 sub wrap_working_dir {
-    my ($lines, $needs_working_dir, $needs_working_dir_hard, $cross_flag) = @_;
+    my ($lines, $needs_working_dir, $needs_working_dir_hard, $cross_flag, $subttr_flag) = @_;
     my @first_lines = ();
     my @last_lines = ();
     if ($needs_working_dir) {
@@ -205,7 +198,7 @@ sub wrap_working_dir {
     }
     push(@first_lines, 'trap ":" 2 3 15');
     push(@first_lines, "(");
-    push(@last_lines, $separator);
+    push(@last_lines, $separator) unless ($subttr_flag);
     push(@last_lines, ")");
     push(@last_lines, "RET=\$?");
     if ($needs_working_dir_hard) {
@@ -219,14 +212,14 @@ sub wrap_working_dir {
 }
 
 sub process_macro_lines {
-    my ($lines) = @_;
+    my ($lines, $for_subttr) = @_;
     my $rest_lines = $lines;
     my @result_lines = ();
     my @attached_files = ();
     my $dirty = undef;
     while (@$rest_lines) {
         my ($new_result_lines, $new_rest_lines, $new_attached_files, $new_dirty) =
-            process_macro_lines_rest($rest_lines);
+            process_macro_lines_rest($rest_lines, $for_subttr);
         $rest_lines = $new_rest_lines;
         push(@result_lines, @$new_result_lines);
         push(@attached_files, @$new_attached_files);
@@ -237,31 +230,37 @@ sub process_macro_lines {
 }
 
 sub process_macro_lines_rest {
-    my ($rest_lines) = @_;
+    my ($rest_lines, $for_subttr) = @_;
     my ($line, @rest_lines) = @$rest_lines;
     my @result_lines = ();
     my @attached_files = ();
     my $dirty = undef;
     if ($line =~ /\A\s*##working-dir\z/ || $line =~ /\A\s*##working-dir\s+(.*)\z/) {
+        # TODO --hard オプション
+        # TODO --perm オプション
         $needs_working_dir = 1;
         $dirty = 1;
     } elsif ($line =~ /\A\s*##file\z/) {
         die "Missing argument of \`##file\`\n";
     } elsif ($line =~ /\A\s*##file\s+(.*)\z/) {
+        # TODO --ttr オプション
         my ($args, $heredoc_marker) = parse_args($1);
         my $fname = undef;
         my $copy_flag = undef;
+        my $ttr_flag = undef;
         while (@$args) {
             my $a = shift(@$args);
             if ($a eq '--copy') {
                 $copy_flag = 1;
+            } elsif ($a eq '--ttr') {
+                $ttr_flag = 1;
             } elsif (!defined $fname) {
                 $fname = validate_filename($a);
             }
         }
         die "Missing argument of \`##file\`\n" if (!defined($fname));
         my ($attached_files, $rest_lines) = process_macro_include_file(
-            $fname, $copy_flag, $heredoc_marker, \@rest_lines);
+            $fname, $copy_flag, $ttr_flag, $heredoc_marker, \@rest_lines, $for_subttr);
         @attached_files = @$attached_files;
         @rest_lines = @$rest_lines;
         $dirty = 1;
@@ -289,12 +288,20 @@ sub process_macro_lines_rest {
         }
         die "Unexpected EOF marker\n" if (defined($heredoc_marker) && defined($src_fname));
         my ($attached_files, $rest_lines) = process_macro_scala(
-            $jar_fname, $wrap_class, $with_runtime, $src_fname, $heredoc_marker, \@rest_lines);
+            $jar_fname, $wrap_class, $with_runtime, $src_fname, $heredoc_marker, \@rest_lines, $for_subttr);
         @attached_files = @$attached_files;
         @rest_lines = @$rest_lines;
         $dirty = 1;
     } else {
         push(@result_lines, $line);
+    }
+    if ($for_subttr) {
+        my @new_attached_files = ();
+        foreach my $a (@attached_files) {
+            $a->{'for_subttr'} = 1;
+            push(@new_attached_files, $a);
+        }
+        @attached_files = @new_attached_files;
     }
     (\@result_lines, \@rest_lines, \@attached_files, $dirty);
 }
@@ -367,30 +374,69 @@ sub remove_indent {
 }
 
 sub process_macro_include_file {
-    my ($filename, $copy_flag, $heredoc_marker, $rest_lines) = @_;
+    my ($filename, $copy_flag, $ttr_flag, $heredoc_marker, $rest_lines, $for_subttr) = @_;
     my $include_lines;
+    my $already = undef;
     if (defined $heredoc_marker) {
         my $ext;
         $ext = $1 if ($filename =~ /\.(.+)\z/);
         ($include_lines, $rest_lines) = parse_heredoc($rest_lines, $heredoc_marker, $ext);
     } else {
-        my $filepath = search_include_file($filename);
-        die "Not found: $filename\n" unless (defined $filepath);
-        open(FP, "<", $filepath) or die "Cannot open $filepath\n";
-        $include_lines = [<FP>];
-        close(FP);
-        $include_lines = remove_end_of_line($include_lines);
+        $already = get_attached_file_from_global($filename);
+        unless (defined($already)) {
+            my $filepath = search_include_file($filename);
+            die "Not found: $filename\n" unless (defined $filepath);
+            open(FP, "<", $filepath) or die "Cannot open $filepath\n";
+            $include_lines = [<FP>];
+            close(FP);
+            $include_lines = remove_end_of_line($include_lines);
+        }
     }
-    if ($filename =~ /\.sh\z/) {
-        my ($body, $attached_files, $dirty) = process_macro_lines($include_lines);
-        ([{'name' => $filename, 'body' => $body, 'copy_flag' => $copy_flag}, @$attached_files], $rest_lines);
+    if ($already) {
+        ([{'name' => $filename,
+           'output_fname' => $already,
+           'copy_flag' => $copy_flag}],
+         $rest_lines);
     } else {
-        ([{'name' => $filename, 'body' => $include_lines, 'copy_flag' => $copy_flag}], $rest_lines);
+        my $global_copy_flag = $copy_flag && !$for_subttr;
+        my $hash = get_lines_hash($include_lines);
+        my $output_fname;
+        if ($ttr_flag) {
+            $output_fname = "script-$hash";
+        } else {
+            $output_fname = "file-$hash";
+        }
+        my $c = scalar @$global_attached_files;
+        $global_attached_files = [@$global_attached_files,
+            {'name' => $filename,
+             'output_fname' => $output_fname,
+             'hash' => $hash,
+             'body' => $include_lines,
+             'for_subttr' => $for_subttr,
+             'copy_flag' => $global_copy_flag}];
+        if ($ttr_flag) {
+            $include_lines = process_lines_for_subttr($include_lines);
+            $global_attached_files->[$c]->{'body'} = $include_lines;
+        }
+        ([{'name' => $filename,
+           'output_fname' => $output_fname,
+           'copy_flag' => $copy_flag}],
+         $rest_lines);
     }
 }
 
+sub get_attached_file_from_global {
+    my ($filename) = @_;
+    foreach my $attached_file (@$global_attached_files) {
+        if ($attached_file->{'name'} eq $filename) {
+            return $attached_file->{'output_fname'};
+        }
+    }
+    undef;
+}
+
 sub process_macro_scala {
-    my ($jar_fname, $wrap_class, $with_runtime, $src_fname, $heredoc_marker, $rest_lines) = @_;
+    my ($jar_fname, $wrap_class, $with_runtime, $src_fname, $heredoc_marker, $rest_lines, $for_subttr) = @_;
     my $result_rest_lines = $rest_lines;
 
     create_working_dir();
@@ -452,7 +498,14 @@ sub process_macro_scala {
 
     }
 
-    ([{'name' => $jar_fname, 'output_fname' => $output_fname}], $result_rest_lines);
+    my $hash = get_file_hash($jar_path);
+    $global_attached_files = [@$global_attached_files,
+        {'name' => $jar_fname,
+         'output_fname' => $output_fname,
+         'hash' => $hash,
+         'for_subttr' => $for_subttr}];
+    ([{'name' => $jar_fname,
+       'output_fname' => $output_fname}], $result_rest_lines);
 }
 
 sub wrap_scala_class_lines {
@@ -586,8 +639,6 @@ while () {
         $embedded_mode = 1;
     } elsif ($arg eq "--sh") {
         $always_sh = 1;
-    } elsif ($arg eq "--subttr") {
-        $subttr_flag = 1;
     } elsif ($input_file eq "") {
         $input_file = $arg;
     } elsif ($arg eq "--") {
@@ -610,12 +661,49 @@ if ($input_file eq "-") {
 }
 @input_lines = @{remove_end_of_line(\@input_lines)};
 
+sub process_lines {
+    my ($input_lines, $input_file, $build_flag) = @_;
+    _process_lines_impl($input_lines, undef, $input_file, $build_flag, []);
+}
+
+sub process_lines_for_subttr {
+    my ($input_lines, $already_attached) = @_;
+    _process_lines_impl($input_lines, 1, undef, undef);
+}
+
+sub _process_lines_impl {
+    my ($input_lines, $for_subttr, $input_file, $build_flag) = @_;
+    my $shebang_line;
+    my $shebang_command;
+    my $always_sh = $for_subttr;
+    ($input_lines, $shebang_line, $shebang_command) = preprocess_lines($input_lines, $always_sh);
+    if ($shebang_command) {
+        die if ($for_subttr);
+        exec_shebang_command($input_file, $input_lines, $shebang_command, $build_flag);
+        die;
+    }
+    my ($main_body, $attached_files, $dirty) = process_macro_lines($input_lines, $for_subttr);
+    my $result;
+    if (!$dirty) {
+        $result = $input_lines;
+    } elsif ($for_subttr) {
+        $result = assemble_files($main_body, $attached_files, $for_subttr);
+    } else {
+        $result = assemble_files($main_body, $global_attached_files, $for_subttr);
+    }
+    if ($shebang_line) {
+        unshift(@$result, $shebang_line);
+    }
+    $result;
+}
+
 sub preprocess_lines {
     my ($input_lines, $always_sh) = @_;
     $input_lines = preprocess_lines_parse_embedded($input_lines);
+    my $shebang_line;
     my $shebang_command;
-    ($input_lines, $shebang_command) = preprocess_lines_shebang($input_lines, $always_sh);
-    ($input_lines, $shebang_command)
+    ($input_lines, $shebang_line, $shebang_command) = preprocess_lines_shebang($input_lines, $always_sh);
+    ($input_lines, $shebang_line, $shebang_command)
 }
 
 sub preprocess_lines_parse_embedded {
@@ -649,21 +737,26 @@ sub preprocess_lines_shebang {
     my ($input_lines, $always_sh) = @_;
     my @input_lines = @$input_lines;
     my $shebang_command = undef;
+    my $shebang_line = undef;
     if (@input_lines > 0) {
-        my $shebang_line = $input_lines[0];
+        $shebang_line = $input_lines[0];
         if      ($shebang_line =~ /\A#!\/[^ ]+sh /) {
-            # nop
+            shift(@input_lines);
         } elsif ($shebang_line =~ /\A#!\/[^ ]+sh\z/) {
-            # nop
+            shift(@input_lines);
         } elsif ($shebang_line =~ /\A#!(\/.+)\z/) {
             $shebang_command = $1;
             if ($always_sh) {
                 @input_lines = @{preprocess_lines_wrap_sh(\@input_lines, $shebang_command)};
                 $shebang_command = undef;
+                $shebang_line = "#!/bin/sh";
+            } else {
+                shift(@input_lines);
+                $shebang_line = undef;
             }
         }
     }
-    (\@input_lines, $shebang_command);
+    (\@input_lines, $shebang_line, $shebang_command);
 }
 
 sub preprocess_lines_wrap_sh {
@@ -676,10 +769,6 @@ sub preprocess_lines_wrap_sh {
     push(@input_lines, "EOF_$hash");
     \@input_lines;
 }
-
-#sub preprocess_lines_for_subttr {
-#    my ($input_lines, $shebang_line, $shebang_command) = @_;
-#}
 
 sub exec_shebang_command {
     my ($input_file, $input_lines, $shebang_command, $build_flag) = @_;
@@ -711,25 +800,7 @@ sub exec_shebang_command {
     }
 }
 
-my ($input_lines, $shebang_command) = preprocess_lines(\@input_lines, $always_sh);
-@input_lines = @$input_lines;
-
-if ($shebang_command) {
-    exec_shebang_command($input_file, $input_lines, $shebang_command, $build_flag);
-}
-
-unless (@input_lines) {
-    exit(0);
-}
-
-my $shebang_line = undef;
-if ($input_lines[0] =~ /\A#!\/.+\z/) {
-    $shebang_line = shift(@input_lines);
-}
-my $result = process_main_body(\@input_lines);
-if ($shebang_line) {
-    unshift(@$result, $shebang_line);
-}
+my $result = process_lines(\@input_lines, $input_file, $build_flag);
 
 if ($build_flag) {
     print "$_\n" foreach @$result;

@@ -1,0 +1,143 @@
+#!/bin/sh
+if [ -z "$WORKING_DIR" ]; then
+    if [ -z "$UID" ]; then
+        UID=`id -u`
+    fi
+    if [ -d /run/user/$UID ]; then
+        export WORKING_DIR=`mktemp -d -p /run/user/$UID`
+    elif [ -d /dev/shm ]; then
+        export WORKING_DIR=`mktemp -d -p /dev/shm`
+    else
+        export WORKING_DIR=`mktemp -d`
+    fi
+else
+    export WORKING_DIR=$WORKING_DIR/working-$$
+    mkdir $WORKING_DIR
+fi
+export HARD_WORKING_DIR=
+trap ":" 2 3 15
+(
+
+################################################################################
+# message.txt
+mkdir -p $HOME/.ttr
+if [ -e $HOME/.ttr/file-d9d5cbccf4ea7e98322293c896504015 ]; then
+    touch $HOME/.ttr/file-d9d5cbccf4ea7e98322293c896504015
+else
+cat <<\EOF_d9d5cbccf4ea7e98322293c896504015 > $HOME/.ttr/file-d9d5cbccf4ea7e98322293c896504015
+
+Hello World!
+
+##file sub.txt <<EOF_SUB
+
+    sub
+
+EOF_SUB
+
+EOF_d9d5cbccf4ea7e98322293c896504015
+fi
+ln -f -s $HOME/.ttr/file-d9d5cbccf4ea7e98322293c896504015 $WORKING_DIR/message.txt
+
+################################################################################
+# message.sh
+mkdir -p $HOME/.ttr
+if [ -e $HOME/.ttr/script-47357383cf97a2d60eba11b2ad0335fe ]; then
+    touch $HOME/.ttr/script-47357383cf97a2d60eba11b2ad0335fe
+else
+cat <<\EOF_47357383cf97a2d60eba11b2ad0335fe > $HOME/.ttr/script-47357383cf97a2d60eba11b2ad0335fe
+export WORKING_DIR=$WORKING_DIR/working-$$
+mkdir $WORKING_DIR
+export HARD_WORKING_DIR=
+trap ":" 2 3 15
+(
+
+# sub.txt
+ln -f -s $HOME/.ttr/file-e4543b011ec28cb2cb7fbcea9e14a411 $WORKING_DIR/sub.txt
+
+echo Hello World!
+
+)
+RET=$?
+rm -rf $WORKING_DIR 2>/dev/null
+exit $RET
+EOF_47357383cf97a2d60eba11b2ad0335fe
+fi
+ln -f -s $HOME/.ttr/script-47357383cf97a2d60eba11b2ad0335fe $WORKING_DIR/message.sh
+
+################################################################################
+# sub.txt
+mkdir -p $HOME/.ttr
+if [ -e $HOME/.ttr/file-e4543b011ec28cb2cb7fbcea9e14a411 ]; then
+    touch $HOME/.ttr/file-e4543b011ec28cb2cb7fbcea9e14a411
+else
+cat <<\EOF_e4543b011ec28cb2cb7fbcea9e14a411 > $HOME/.ttr/file-e4543b011ec28cb2cb7fbcea9e14a411
+
+sub
+
+EOF_e4543b011ec28cb2cb7fbcea9e14a411
+fi
+
+################################################################################
+# file-2-1.sh
+mkdir -p $HOME/.ttr
+if [ -e $HOME/.ttr/script-82d3a356171f20c5867bc92b3f70d066 ]; then
+    touch $HOME/.ttr/script-82d3a356171f20c5867bc92b3f70d066
+else
+cat <<\EOF_82d3a356171f20c5867bc92b3f70d066 > $HOME/.ttr/script-82d3a356171f20c5867bc92b3f70d066
+export WORKING_DIR=$WORKING_DIR/working-$$
+mkdir $WORKING_DIR
+export HARD_WORKING_DIR=
+trap ":" 2 3 15
+(
+
+# file-2-2.sh
+ln -f -s $HOME/.ttr/script-4597f4b7efd2c479499be59928bfabd3 $WORKING_DIR/file-2-2.sh
+
+echo file-2-1
+
+cat $WORKING_DIR/file-2-2.sh
+
+)
+RET=$?
+rm -rf $WORKING_DIR 2>/dev/null
+exit $RET
+EOF_82d3a356171f20c5867bc92b3f70d066
+fi
+ln -f -s $HOME/.ttr/script-82d3a356171f20c5867bc92b3f70d066 $WORKING_DIR/file-2-1.sh
+
+################################################################################
+# file-2-2.sh
+mkdir -p $HOME/.ttr
+if [ -e $HOME/.ttr/script-4597f4b7efd2c479499be59928bfabd3 ]; then
+    touch $HOME/.ttr/script-4597f4b7efd2c479499be59928bfabd3
+else
+cat <<\EOF_4597f4b7efd2c479499be59928bfabd3 > $HOME/.ttr/script-4597f4b7efd2c479499be59928bfabd3
+export WORKING_DIR=$WORKING_DIR/working-$$
+mkdir $WORKING_DIR
+export HARD_WORKING_DIR=
+trap ":" 2 3 15
+(
+
+# file-2-1.sh
+ln -f -s $HOME/.ttr/script-82d3a356171f20c5867bc92b3f70d066 $WORKING_DIR/file-2-1.sh
+
+echo file-2-2
+
+cat $WORKING_DIR/file-2-1.sh
+
+)
+RET=$?
+rm -rf $WORKING_DIR 2>/dev/null
+exit $RET
+EOF_4597f4b7efd2c479499be59928bfabd3
+fi
+
+################################################################################
+cat $WORKING_DIR/message.txt
+sh $WORKING_DIR/message.sh
+
+################################################################################
+)
+RET=$?
+rm -rf $WORKING_DIR 2>/dev/null
+exit $RET

@@ -1,0 +1,31 @@
+#!/bin/sh
+
+##file message.txt <<EOF
+
+    Hello World!
+
+    ##file sub.txt <<EOF_SUB
+
+        sub
+
+    EOF_SUB
+
+EOF
+
+##file message.sh --ttr <<EOF
+
+    echo Hello World!
+
+    ##file sub.txt <<EOF_SUB
+
+        sub
+
+    EOF_SUB
+
+EOF
+
+##file --ttr file-2-1.sh
+
+cat $WORKING_DIR/message.txt
+sh $WORKING_DIR/message.sh
+
