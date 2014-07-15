@@ -1,0 +1,76 @@
+#!/bin/sh
+
+while [ "$#" != 0 ]; do
+    if [ "$1" = '--help' ]; then
+        echo "Usage: normalize-encoding"
+        exit
+    else
+        echo "Unknown argument: $1" >&2
+        exit 1
+    fi
+    shift
+done
+
+(cd $WORKING_DIR; perl main.pl)
+
+##file main.pl <<EOF
+
+    use strict;
+    use warnings;
+    use utf8;
+
+    my $max_head_lines_count = 10;
+    my $fh;
+    my @head_lines = ();
+    my $encoding;
+
+    sub get_encoding {
+        my $encoding = `cat encoding.txt`;
+        $encoding =~ s/^\s*(.+)\s*$/$1/g;
+        print STDERR "Encoding: $encoding\n";
+        $encoding;
+    }
+
+    sub get_convert_cmd {
+        my ($encoding) = @_;
+        if ($encoding eq 'Shift_JIS') {
+            'nkf -Sw';
+        } elsif ($encoding eq 'CP932') {
+            'nkf -Sw';
+        } elsif ($encoding eq 'EUC-JP') {
+            'nkf -Ew';
+        } elsif ($encoding eq 'ISO-2022-JP') {
+            'nkf -Jw';
+        } elsif ($encoding eq 'ASCII') {
+            'cat';
+        } elsif ($encoding eq 'UTF-8') {
+            'cat';
+        } else {
+            die "Unknown encoding: $encoding\n";
+            # ''
+        }
+    }
+
+    open($fh, '|-', 'nkf --guess=1 > encoding.txt');
+    while (my $line = <STDIN>) {
+        print $fh $line;
+        if ($. <= $max_head_lines_count) {
+            push(@head_lines, $line);
+            if ($. == $max_head_lines_count) {
+                close($fh);
+                $encoding = get_encoding();
+                open($fh, '|-', get_convert_cmd($encoding));
+                print $fh $_ foreach (@head_lines);
+            }
+        }
+    }
+    unless (defined($encoding)) {
+        close($fh);
+        $encoding = get_encoding();
+        open($fh, '|-', 'cat');
+        print $fh $_ foreach (@head_lines);
+    }
+    close($fh);
+
+EOF
+
