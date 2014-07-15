@@ -15,6 +15,7 @@ else
     mkdir $WORKING_DIR
 fi
 export HARD_WORKING_DIR=
+export PERM_WORKING_DIR=
 trap ":" 2 3 15
 (
 

@@ -14,7 +14,10 @@ else
     export WORKING_DIR=$WORKING_DIR/working-$$
     mkdir $WORKING_DIR
 fi
-export HARD_WORKING_DIR=
+export HARD_WORKING_DIR=`mktemp -d`
+export PERM_WORKING_DIR=$HOME/.ttr/perm-d883ea4785782d113d3ed2a320bb0bee
+mkdir -p $PERM_WORKING_DIR
+touch $PERM_WORKING_DIR
 trap ":" 2 3 15
 (
 
@@ -38,5 +41,6 @@ cat $WORKING_DIR/message.txt
 ################################################################################
 )
 RET=$?
+rm -rf $HARD_WORKING_DIR 2>/dev/null
 rm -rf $WORKING_DIR 2>/dev/null
 exit $RET

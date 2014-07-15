@@ -1,5 +1,7 @@
 #!/bin/sh
 
+##working-dir --hard --perm -
+
 ##file message.txt <<EOF
 
 Hello World!

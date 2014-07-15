@@ -45,6 +45,7 @@ my $cross_flag = undef;
 
 my $needs_working_dir = undef;
 my $needs_working_dir_hard = undef;
+my $needs_working_dir_perm = undef;
 
 my $working_dir;
 
@@ -53,6 +54,8 @@ my $global_attached_files = [];
 # name, output_fname, hash, (body), (binary_path), (for_subttr), (copy_flag)
 # ttrごとに
 # name, output_fname, (copy_flag)
+
+my $global_hash = undef;
 
 sub assemble_files {
     my ($main_body, $attached_files, $subttr_flag) = @_;
@@ -68,6 +71,7 @@ sub assemble_files {
         @result_lines = @{wrap_working_dir(\@result_lines,
                                            ($needs_working_dir || (scalar @$attached_files)),
                                            $needs_working_dir_hard,
+                                           $needs_working_dir_perm,
                                            $cross_flag, $subttr_flag)};
     }
     \@result_lines;
@@ -85,21 +89,6 @@ sub create_heredoc_sh {
     my $output_fname = $attached_file->{'output_fname'};
     my $hash = $attached_file->{'hash'};
     my $for_subttr = $attached_file->{'for_subttr'};
-#    if ($attached_file->{'body'}) {
-#        my $lines = $attached_file->{'body'};
-#        $hash = get_lines_hash($lines);
-#        $output_fname = "file-$hash";
-#    } elsif ($attached_file->{'binary_path'}) {
-#        my $path = $attached_file->{'binary_path'};
-#        $hash = get_file_hash($path);
-#        $output_fname = "file-$hash";
-#    } elsif ($attached_file->{'output_fname'}) {
-#        $output_fname = $attached_file->{'output_fname'};
-#        my $path = "$HOME/.ttr/$output_fname";
-#        $hash = get_file_hash($path);
-#    } else {
-#        die "DEBUG $filename";
-#    }
     unless ($subttr_flag) {
         push(@result_lines, "mkdir -p \$HOME/.ttr");
         push(@result_lines, "if [ -e \$HOME/.ttr/$output_fname ]; then");
@@ -152,7 +141,10 @@ sub get_file_hash {
 }
 
 sub wrap_working_dir {
-    my ($lines, $needs_working_dir, $needs_working_dir_hard, $cross_flag, $subttr_flag) = @_;
+    my ($lines, $needs_working_dir, $needs_working_dir_hard, $needs_working_dir_perm, $cross_flag, $subttr_flag) = @_;
+    if (defined($needs_working_dir_perm) && $needs_working_dir_perm eq '-') {
+        $needs_working_dir_perm = $global_hash;
+    }
     my @first_lines = ();
     my @last_lines = ();
     if ($needs_working_dir) {
@@ -198,6 +190,13 @@ sub wrap_working_dir {
     } else {
         push(@first_lines, "export HARD_WORKING_DIR=");
     }
+    if ($needs_working_dir_perm) {
+        push(@first_lines, "export PERM_WORKING_DIR=\$HOME/.ttr/perm-$needs_working_dir_perm");
+        push(@first_lines, "mkdir -p \$PERM_WORKING_DIR");
+        push(@first_lines, "touch \$PERM_WORKING_DIR");
+    } else {
+        push(@first_lines, "export PERM_WORKING_DIR=");
+    }
     push(@first_lines, 'trap ":" 2 3 15');
     push(@first_lines, "(");
     push(@last_lines, $separator) unless ($subttr_flag);
@@ -237,15 +236,26 @@ sub process_macro_lines_rest {
     my @result_lines = ();
     my @attached_files = ();
     my $dirty = undef;
-    if ($line =~ /\A\s*##working-dir\z/ || $line =~ /\A\s*##working-dir\s+(.*)\z/) {
-        # TODO --hard オプション
-        # TODO --perm オプション
+    if ($line =~ /\A\s*##working-dir()\z/ || $line =~ /\A\s*##working-dir\s+(.*)\z/) {
+        my ($args, $heredoc_marker) = parse_args($1);
+        my $hard_flag = undef;
+        my $perm_name = undef;
+        while (@$args) {
+            my $a = shift(@$args);
+            if ($a eq '--hard') {
+                $hard_flag = 1;
+            } elsif ($a eq '--perm') {
+                die "Missing argument of '--perm'\n" unless (@$args);
+                $perm_name = shift(@$args);
+            }
+        }
         $needs_working_dir = 1;
+        $needs_working_dir_hard = 1 if ($hard_flag);
+        $needs_working_dir_perm = $perm_name;
         $dirty = 1;
     } elsif ($line =~ /\A\s*##file\z/) {
         die "Missing argument of \`##file\`\n";
     } elsif ($line =~ /\A\s*##file\s+(.*)\z/) {
-        # TODO --ttr オプション
         my ($args, $heredoc_marker) = parse_args($1);
         my $fname = undef;
         my $copy_flag = undef;
@@ -809,6 +819,7 @@ sub exec_shebang_command {
     }
 }
 
+$global_hash = get_lines_hash(\@input_lines);
 my $result = process_lines(\@input_lines, $input_file, $build_flag);
 
 if ($build_flag) {

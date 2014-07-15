@@ -15,6 +15,7 @@ else
     mkdir $WORKING_DIR
 fi
 export HARD_WORKING_DIR=
+export PERM_WORKING_DIR=
 trap ":" 2 3 15
 (
 
@@ -48,6 +49,7 @@ cat <<\EOF_47357383cf97a2d60eba11b2ad0335fe > $HOME/.ttr/script-47357383cf97a2d6
 export WORKING_DIR=$WORKING_DIR/working-$$
 mkdir $WORKING_DIR
 export HARD_WORKING_DIR=
+export PERM_WORKING_DIR=
 trap ":" 2 3 15
 (
 
@@ -87,6 +89,7 @@ cat <<\EOF_82d3a356171f20c5867bc92b3f70d066 > $HOME/.ttr/script-82d3a356171f20c5
 export WORKING_DIR=$WORKING_DIR/working-$$
 mkdir $WORKING_DIR
 export HARD_WORKING_DIR=
+export PERM_WORKING_DIR=
 trap ":" 2 3 15
 (
 
@@ -115,6 +118,7 @@ cat <<\EOF_4597f4b7efd2c479499be59928bfabd3 > $HOME/.ttr/script-4597f4b7efd2c479
 export WORKING_DIR=$WORKING_DIR/working-$$
 mkdir $WORKING_DIR
 export HARD_WORKING_DIR=
+export PERM_WORKING_DIR=
 trap ":" 2 3 15
 (
 
