@@ -1,0 +1,26 @@
+#!/bin/sh
+
+perl -nle '
+    BEGIN {
+        $| = 1;
+    }
+    s/\A\s*(.*)\s*\z/$1/g;
+    my $line = "";
+    while () {
+        if (/\A"([^"]+)"\s+(.*)\z/) {
+            $line = "$line\t$1";
+            $_ = $2;
+        } elsif (/\A\[([^\]]+)\]\s+(.*)\z/) {
+            $line = "$line\t$1";
+            $_ = $2;
+        } elsif (/\A([^\s]+)\s+(.*)\z/) {
+            $line = "$line\t$1";
+            $_ = $2;
+        } else {
+            $line = "$line\t$_";
+            last;
+        }
+    }
+    print substr($line, 1);
+'
+
