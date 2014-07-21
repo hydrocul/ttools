@@ -31,6 +31,7 @@ use utf8;
 
 use File::Temp qw/tempfile tempdir/;
 use File::Basename qw/dirname basename/;
+use File::Path qw/rmtree/;
 use Digest::MD5 qw/md5_hex/;
 
 use Data::Dumper;
@@ -455,8 +456,9 @@ sub process_macro_scala {
     create_working_dir();
 
     my $src_path;
+    my $src_hash;
     if (defined $heredoc_marker) {
-        $src_path = "$working_dir/rt-script.scala";
+        $src_path = "$working_dir/script.scala";
         my ($include_lines, $new_rest_lines) = parse_heredoc($rest_lines, $heredoc_marker, 'scala');
         $result_rest_lines = $new_rest_lines;
         if (defined($wrap_class)) {
@@ -465,14 +467,22 @@ sub process_macro_scala {
         open(FP, ">", $src_path);
         print FP "$_\n" foreach (@$include_lines);
         close(FP);
+        $src_hash = get_lines_hash($include_lines);
     } else {
         $src_path = search_include_file($src_fname);
         if (defined($wrap_class)) {
             $src_path = wrap_scala_class_file($src_path, $wrap_class);
         }
+        $src_hash = get_file_hash($src_path);
     }
 
-    my $src_hash = get_file_hash($src_path);
+    my $result = process_macro_scala_sub($jar_fname, $with_runtime, $src_path, $src_hash, $for_subttr);
+    ($result, $result_rest_lines);
+}
+
+sub process_macro_scala_sub {
+    my ($jar_fname, $with_runtime, $src_path, $src_hash, $for_subttr) = @_;
+
     my $output_fname;
     if ($with_runtime) {
         $output_fname = "scala-jar-$src_hash.rt.jar";
@@ -482,19 +492,22 @@ sub process_macro_scala {
     my $jar_path = "$HOME/.ttr/$output_fname";
     unless ( -e $jar_path) {
 
-        mkdir("$working_dir/rt-classes") if (! -e "$working_dir/rt-classes");
+        if (-e "$working_dir/classes") {
+            rmtree("$working_dir/classes");
+        }
+        mkdir("$working_dir/classes");
 
         my $fork_code = ":";
         if ($with_runtime) {
             die "SCALA_HOME Not found" unless ($ENV{'SCALA_HOME'});
-            $fork_code = "$fork_code; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar || exit 1"
+            $fork_code = "$fork_code; (cd $working_dir/classes; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar) || exit 1"
         }
 
         my $pid = fork;
         if ($pid) {
             wait;
         } elsif (defined $pid) {
-            exec("$fork_code; scalac -d $working_dir/rt-classes $src_path && jar -cf $jar_path -C $working_dir/rt-classes .");
+            exec("$fork_code; scalac -d $working_dir/classes $src_path && jar -cf $jar_path -C $working_dir/classes .");
         } else {
             die;
         }
@@ -507,7 +520,7 @@ sub process_macro_scala {
             exit $e;
         }
 
-        `rm -r $working_dir/rt-classes`;
+        rmtree("$working_dir/classes");
 
     }
 
@@ -517,8 +530,8 @@ sub process_macro_scala {
          'output_fname' => $output_fname,
          'hash' => $hash,
          'for_subttr' => $for_subttr}];
-    ([{'name' => $jar_fname,
-       'output_fname' => $output_fname}], $result_rest_lines);
+    [{'name' => $jar_fname,
+      'output_fname' => $output_fname}];
 }
 
 sub wrap_scala_class_lines {
