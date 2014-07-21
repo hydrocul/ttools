@@ -22,10 +22,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-37cc26d57e5326075648685d1a2c3098 ]; then
-    touch $HOME/.ttr/file-37cc26d57e5326075648685d1a2c3098
+if [ -e $HOME/.ttr/file-d076a71a377301b3e84bf1cf4b2ad421 ]; then
+    touch $HOME/.ttr/file-d076a71a377301b3e84bf1cf4b2ad421
 else
-cat <<\EOF_37cc26d57e5326075648685d1a2c3098 > $HOME/.ttr/file-37cc26d57e5326075648685d1a2c3098
+cat <<\EOF_d076a71a377301b3e84bf1cf4b2ad421 > $HOME/.ttr/file-d076a71a377301b3e84bf1cf4b2ad421
 use strict;
 use warnings;
 use utf8;
@@ -504,22 +504,7 @@ sub process_macro_scala_sub {
             $fork_code = "$fork_code; (cd $working_dir/classes; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar) || exit 1"
         }
 
-        my $pid = fork;
-        if ($pid) {
-            wait;
-        } elsif (defined $pid) {
-            exec("$fork_code; scalac -d $working_dir/classes $src_path && jar -cf $jar_path -C $working_dir/classes .");
-        } else {
-            die;
-        }
-
-        if ($? != 0) {
-            my $e = $? >> 8;
-            if (!$e) {
-                $e = 1;
-            }
-            exit $e;
-        }
+        fork_and_wait("$fork_code; scalac -d $working_dir/classes $src_path && jar -cf $jar_path -C $working_dir/classes .");
 
         rmtree("$working_dir/classes");
 
@@ -641,6 +626,24 @@ sub validate_class_name {
         return $str;
     } else {
         die "Invalid class name: $str";
+    }
+}
+
+sub fork_and_wait {
+    my @args = @_;
+    my $pid = fork;
+    if ($pid) {
+        wait;
+    } elsif (defined $pid) {
+        exec(@args);
+    } else {
+        die;
+    }
+
+    if ($? != 0) {
+        my $e = $? >> 8;
+        $e = 1 unless ($e);
+        exit $e;
     }
 }
 
@@ -850,24 +853,12 @@ if ($build_flag) {
     open(FH, ">", $script_path);
     print FH "$_\n" foreach (@$result);
     close(FH);
-    my $pid = fork;
-    if ($pid) {
-        wait;
-    } elsif (defined $pid) {
-        exec("sh", $script_path, @script_args);
-    } else {
-        die;
-    }
-    if ($?) {
-        my $e = $? >> 8;
-        $e = 1 unless ($e);
-        exit $e;
-    }
+    fork_and_wait("sh", $script_path, @script_args);
 }
 
-EOF_37cc26d57e5326075648685d1a2c3098
+EOF_d076a71a377301b3e84bf1cf4b2ad421
 fi
-ln -f -s $HOME/.ttr/file-37cc26d57e5326075648685d1a2c3098 $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-d076a71a377301b3e84bf1cf4b2ad421 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 

@@ -503,22 +503,7 @@ sub process_macro_scala_sub {
             $fork_code = "$fork_code; (cd $working_dir/classes; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar) || exit 1"
         }
 
-        my $pid = fork;
-        if ($pid) {
-            wait;
-        } elsif (defined $pid) {
-            exec("$fork_code; scalac -d $working_dir/classes $src_path && jar -cf $jar_path -C $working_dir/classes .");
-        } else {
-            die;
-        }
-
-        if ($? != 0) {
-            my $e = $? >> 8;
-            if (!$e) {
-                $e = 1;
-            }
-            exit $e;
-        }
+        fork_and_wait("$fork_code; scalac -d $working_dir/classes $src_path && jar -cf $jar_path -C $working_dir/classes .");
 
         rmtree("$working_dir/classes");
 
@@ -640,6 +625,24 @@ sub validate_class_name {
         return $str;
     } else {
         die "Invalid class name: $str";
+    }
+}
+
+sub fork_and_wait {
+    my @args = @_;
+    my $pid = fork;
+    if ($pid) {
+        wait;
+    } elsif (defined $pid) {
+        exec(@args);
+    } else {
+        die;
+    }
+
+    if ($? != 0) {
+        my $e = $? >> 8;
+        $e = 1 unless ($e);
+        exit $e;
     }
 }
 
@@ -849,19 +852,7 @@ if ($build_flag) {
     open(FH, ">", $script_path);
     print FH "$_\n" foreach (@$result);
     close(FH);
-    my $pid = fork;
-    if ($pid) {
-        wait;
-    } elsif (defined $pid) {
-        exec("sh", $script_path, @script_args);
-    } else {
-        die;
-    }
-    if ($?) {
-        my $e = $? >> 8;
-        $e = 1 unless ($e);
-        exit $e;
-    }
+    fork_and_wait("sh", $script_path, @script_args);
 }
 
 END_OF_TTR_PL
