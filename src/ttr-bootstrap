@@ -22,10 +22,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-d076a71a377301b3e84bf1cf4b2ad421 ]; then
-    touch $HOME/.ttr/file-d076a71a377301b3e84bf1cf4b2ad421
+if [ -e $HOME/.ttr/file-7f3c96bd2d60282312a4234a82e1ac3f ]; then
+    touch $HOME/.ttr/file-7f3c96bd2d60282312a4234a82e1ac3f
 else
-cat <<\EOF_d076a71a377301b3e84bf1cf4b2ad421 > $HOME/.ttr/file-d076a71a377301b3e84bf1cf4b2ad421
+cat <<\EOF_7f3c96bd2d60282312a4234a82e1ac3f > $HOME/.ttr/file-7f3c96bd2d60282312a4234a82e1ac3f
 use strict;
 use warnings;
 use utf8;
@@ -58,6 +58,8 @@ my $global_attached_files = [];
 # name, output_fname, (copy_flag)
 
 my $global_hash = undef;
+
+my $global_shebang_line = undef;
 
 sub assemble_files {
     my ($main_body, $attached_files, $subttr_flag) = @_;
@@ -718,6 +720,15 @@ sub _process_lines_impl {
         exec_shebang_command($input_file, $input_lines, $shebang_command, $build_flag);
         die;
     }
+    if ($for_subttr) {
+        unless ($shebang_line) {
+           $shebang_line = $global_shebang_line;
+        }
+    } else {
+        if ($shebang_line) {
+           $global_shebang_line = $shebang_line;
+        }
+    }
     my ($main_body, $attached_files, $dirty) = process_macro_lines($input_lines, $for_subttr);
     my $result;
     if (!$dirty) {
@@ -735,10 +746,10 @@ sub _process_lines_impl {
 
 sub preprocess_lines {
     my ($input_lines, $always_sh) = @_;
-    $input_lines = preprocess_lines_parse_embedded($input_lines);
     my $shebang_line;
     my $shebang_command;
     ($input_lines, $shebang_line, $shebang_command) = preprocess_lines_shebang($input_lines, $always_sh);
+    $input_lines = preprocess_lines_parse_embedded($input_lines);
     ($input_lines, $shebang_line, $shebang_command)
 }
 
@@ -856,9 +867,9 @@ if ($build_flag) {
     fork_and_wait("sh", $script_path, @script_args);
 }
 
-EOF_d076a71a377301b3e84bf1cf4b2ad421
+EOF_7f3c96bd2d60282312a4234a82e1ac3f
 fi
-ln -f -s $HOME/.ttr/file-d076a71a377301b3e84bf1cf4b2ad421 $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-7f3c96bd2d60282312a4234a82e1ac3f $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 

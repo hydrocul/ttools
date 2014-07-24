@@ -46,6 +46,7 @@ if [ -e $HOME/.ttr/script-47357383cf97a2d60eba11b2ad0335fe ]; then
     touch $HOME/.ttr/script-47357383cf97a2d60eba11b2ad0335fe
 else
 cat <<\EOF_47357383cf97a2d60eba11b2ad0335fe > $HOME/.ttr/script-47357383cf97a2d60eba11b2ad0335fe
+#!/bin/sh
 export WORKING_DIR=$WORKING_DIR/working-$$
 mkdir $WORKING_DIR
 export HARD_WORKING_DIR=
@@ -86,6 +87,7 @@ if [ -e $HOME/.ttr/script-82d3a356171f20c5867bc92b3f70d066 ]; then
     touch $HOME/.ttr/script-82d3a356171f20c5867bc92b3f70d066
 else
 cat <<\EOF_82d3a356171f20c5867bc92b3f70d066 > $HOME/.ttr/script-82d3a356171f20c5867bc92b3f70d066
+#!/bin/sh
 export WORKING_DIR=$WORKING_DIR/working-$$
 mkdir $WORKING_DIR
 export HARD_WORKING_DIR=
@@ -115,6 +117,7 @@ if [ -e $HOME/.ttr/script-4597f4b7efd2c479499be59928bfabd3 ]; then
     touch $HOME/.ttr/script-4597f4b7efd2c479499be59928bfabd3
 else
 cat <<\EOF_4597f4b7efd2c479499be59928bfabd3 > $HOME/.ttr/script-4597f4b7efd2c479499be59928bfabd3
+#!/bin/sh
 export WORKING_DIR=$WORKING_DIR/working-$$
 mkdir $WORKING_DIR
 export HARD_WORKING_DIR=

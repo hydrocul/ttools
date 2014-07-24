@@ -58,6 +58,8 @@ my $global_attached_files = [];
 
 my $global_hash = undef;
 
+my $global_shebang_line = undef;
+
 sub assemble_files {
     my ($main_body, $attached_files, $subttr_flag) = @_;
     my @result_lines = ();
@@ -717,6 +719,15 @@ sub _process_lines_impl {
         exec_shebang_command($input_file, $input_lines, $shebang_command, $build_flag);
         die;
     }
+    if ($for_subttr) {
+        unless ($shebang_line) {
+           $shebang_line = $global_shebang_line;
+        }
+    } else {
+        if ($shebang_line) {
+           $global_shebang_line = $shebang_line;
+        }
+    }
     my ($main_body, $attached_files, $dirty) = process_macro_lines($input_lines, $for_subttr);
     my $result;
     if (!$dirty) {
@@ -734,10 +745,10 @@ sub _process_lines_impl {
 
 sub preprocess_lines {
     my ($input_lines, $always_sh) = @_;
-    $input_lines = preprocess_lines_parse_embedded($input_lines);
     my $shebang_line;
     my $shebang_command;
     ($input_lines, $shebang_line, $shebang_command) = preprocess_lines_shebang($input_lines, $always_sh);
+    $input_lines = preprocess_lines_parse_embedded($input_lines);
     ($input_lines, $shebang_line, $shebang_command)
 }
 
