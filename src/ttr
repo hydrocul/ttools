@@ -33,6 +33,7 @@ use File::Temp qw/tempfile tempdir/;
 use File::Basename qw/dirname basename/;
 use File::Path qw/rmtree/;
 use Digest::MD5 qw/md5_hex/;
+use IPC::Open2 qw/open2/;
 
 use Data::Dumper;
 
@@ -48,7 +49,7 @@ my $needs_working_dir = undef;
 my $needs_working_dir_hard = undef;
 my $needs_working_dir_perm = undef;
 
-my $working_dir;
+my $working_dir = undef;
 
 my $global_attached_files = [];
 # グローバル
@@ -263,19 +264,26 @@ sub process_macro_lines_rest {
         my $fname = undef;
         my $copy_flag = undef;
         my $ttr_flag = undef;
+        my $preexec_flag = undef;
+        my $prebuild_flag = undef;
         while (@$args) {
             my $a = shift(@$args);
             if ($a eq '--copy') {
                 $copy_flag = 1;
             } elsif ($a eq '--ttr') {
                 $ttr_flag = 1;
+            } elsif ($a eq '--preexec') {
+                $preexec_flag = 1;
+            } elsif ($a eq '--prebuild') {
+                $prebuild_flag = 1;
             } elsif (!defined $fname) {
                 $fname = validate_filename($a);
             }
+            # TODO --binary
         }
         die "Missing argument of \`##file\`\n" if (!defined($fname));
         my ($attached_files, $rest_lines) = process_macro_include_file(
-            $fname, $copy_flag, $ttr_flag, $heredoc_marker, \@rest_lines, $for_subttr);
+            $fname, $copy_flag, $ttr_flag, $preexec_flag, $prebuild_flag, $heredoc_marker, \@rest_lines, $for_subttr);
         @attached_files = @$attached_files;
         @rest_lines = @$rest_lines;
         $dirty = 1;
@@ -389,7 +397,7 @@ sub remove_indent {
 }
 
 sub process_macro_include_file {
-    my ($filename, $copy_flag, $ttr_flag, $heredoc_marker, $rest_lines, $for_subttr) = @_;
+    my ($filename, $copy_flag, $ttr_flag, $preexec_flag, $prebuild_flag, $heredoc_marker, $rest_lines, $for_subttr) = @_;
     my $include_lines;
     my $already = undef;
     if (defined $heredoc_marker) {
@@ -414,6 +422,11 @@ sub process_macro_include_file {
            'copy_flag' => $copy_flag}],
          $rest_lines);
     } else {
+        if ($preexec_flag) {
+            $include_lines = process_macro_include_file_preexec($include_lines);
+        } elsif ($prebuild_flag) {
+            $include_lines = process_macro_include_file_prebuild($include_lines);
+        }
         my $global_copy_flag = $copy_flag && !$for_subttr;
         my $hash = get_lines_hash($include_lines);
         my $output_fname;
@@ -439,6 +452,37 @@ sub process_macro_include_file {
            'copy_flag' => $copy_flag}],
          $rest_lines);
     }
+}
+
+sub process_macro_include_file_preexec {
+    my ($include_lines) = @_;
+    _process_macro_include_file_preexec_sub($include_lines, undef);
+}
+
+sub process_macro_include_file_prebuild {
+    my ($include_lines) = @_;
+    _process_macro_include_file_preexec_sub($include_lines, 1);
+}
+
+sub _process_macro_include_file_preexec_sub {
+    my ($include_lines, $build_only) = @_;
+    my $reader;
+    my $writer;
+    my $command;
+    if ($build_only) {
+        $command = "ttr --build --sh";
+    } else {
+        $command = "ttr --sh";
+    }
+    my $pid = open2($reader, $writer, $command);
+    unless ($pid) {
+        die "failed to exec ttr\n";
+    }
+    print $writer "$_\n" foreach (@$include_lines);
+    close($writer);
+    @$include_lines = <$reader>;
+    wait;
+    remove_end_of_line($include_lines);
 }
 
 sub get_attached_file_from_global {

@@ -1,0 +1,9 @@
+#!/bin/sh
+
+cat $WORKING_DIR/memo.txt
+
+##file --preexec memo.txt <<EOF
+
+    echo "Hello"
+
+EOF

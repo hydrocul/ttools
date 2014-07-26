@@ -1,0 +1,41 @@
+#!/bin/sh
+if [ -z "$WORKING_DIR" ]; then
+    if [ -z "$UID" ]; then
+        UID=`id -u`
+    fi
+    if [ -d /run/user/$UID ]; then
+        export WORKING_DIR=`mktemp -d -p /run/user/$UID`
+    elif [ -d /dev/shm ]; then
+        export WORKING_DIR=`mktemp -d -p /dev/shm`
+    else
+        export WORKING_DIR=`mktemp -d`
+    fi
+else
+    export WORKING_DIR=$WORKING_DIR/working-$$
+    mkdir $WORKING_DIR
+fi
+export HARD_WORKING_DIR=
+export PERM_WORKING_DIR=
+trap ":" 2 3 15
+(
+
+################################################################################
+# memo.txt
+mkdir -p $HOME/.ttr
+if [ -e $HOME/.ttr/file-09f7e02f1290be211da707a266f153b3 ]; then
+    touch $HOME/.ttr/file-09f7e02f1290be211da707a266f153b3
+else
+cat <<\EOF_09f7e02f1290be211da707a266f153b3 > $HOME/.ttr/file-09f7e02f1290be211da707a266f153b3
+Hello
+EOF_09f7e02f1290be211da707a266f153b3
+fi
+ln -f -s $HOME/.ttr/file-09f7e02f1290be211da707a266f153b3 $WORKING_DIR/memo.txt
+
+################################################################################
+cat $WORKING_DIR/memo.txt
+
+################################################################################
+)
+RET=$?
+rm -rf $WORKING_DIR 2>/dev/null
+exit $RET
