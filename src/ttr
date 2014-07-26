@@ -736,7 +736,7 @@ my @input_lines;
 if ($input_file eq "-") {
     @input_lines = (<STDIN>);
 } else {
-    open(FH, "<", $input_file);
+    open(FH, "<", $input_file) or die "Cannot open input file: $input_file\n";
     @input_lines = (<FH>);
     close(FH);
 }

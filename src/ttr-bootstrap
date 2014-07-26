@@ -22,10 +22,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-59b68ab053b701badd9b01d905dd8416 ]; then
-    touch $HOME/.ttr/file-59b68ab053b701badd9b01d905dd8416
+if [ -e $HOME/.ttr/file-8ab60e6bb8cb8a6bcf8d4469ece7ecf4 ]; then
+    touch $HOME/.ttr/file-8ab60e6bb8cb8a6bcf8d4469ece7ecf4
 else
-cat <<\EOF_59b68ab053b701badd9b01d905dd8416 > $HOME/.ttr/file-59b68ab053b701badd9b01d905dd8416
+cat <<\EOF_8ab60e6bb8cb8a6bcf8d4469ece7ecf4 > $HOME/.ttr/file-8ab60e6bb8cb8a6bcf8d4469ece7ecf4
 use strict;
 use warnings;
 use utf8;
@@ -737,7 +737,7 @@ my @input_lines;
 if ($input_file eq "-") {
     @input_lines = (<STDIN>);
 } else {
-    open(FH, "<", $input_file);
+    open(FH, "<", $input_file) or die "Cannot open input file: $input_file\n";
     @input_lines = (<FH>);
     close(FH);
 }
@@ -911,9 +911,9 @@ if ($build_flag) {
     fork_and_wait("sh", $script_path, @script_args);
 }
 
-EOF_59b68ab053b701badd9b01d905dd8416
+EOF_8ab60e6bb8cb8a6bcf8d4469ece7ecf4
 fi
-ln -f -s $HOME/.ttr/file-59b68ab053b701badd9b01d905dd8416 $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-8ab60e6bb8cb8a6bcf8d4469ece7ecf4 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 
