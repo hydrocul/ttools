@@ -1,0 +1,17 @@
+#!/bin/sh
+exec ttr "$0" -- "$@"
+
+##working-dir --perm 85a0ad6125492519bf278eafdc701b9c
+
+if [ ! -e $PERM_WORKING_DIR/apache-ant-1.9.4 ]; then
+    (
+        cd $PERM_WORKING_DIR
+        if [ ! -e apache-ant-1.9.4-bin.tar.gz ]; then
+            wget http://ftp.riken.jp/net/apache//ant/binaries/apache-ant-1.9.4-bin.tar.gz >&2 || exit 1
+        fi
+        tar xvzf apache-ant-1.9.4-bin.tar.gz >&2 || exit 1
+    ) || exit 1
+fi
+
+$PERM_WORKING_DIR/apache-ant-1.9.4/bin/ant "$@"
+
