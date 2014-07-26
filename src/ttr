@@ -536,24 +536,7 @@ sub process_macro_scala_sub {
         $output_fname = "scala-jar-$src_hash.jar";
     }
     my $jar_path = "$HOME/.ttr/$output_fname";
-    unless ( -e $jar_path) {
-
-        if (-e "$working_dir/classes") {
-            rmtree("$working_dir/classes");
-        }
-        mkdir("$working_dir/classes");
-
-        my $fork_code = ":";
-        if ($with_runtime) {
-            die "SCALA_HOME Not found" unless ($ENV{'SCALA_HOME'});
-            $fork_code = "$fork_code; (cd $working_dir/classes; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar) || exit 1"
-        }
-
-        fork_and_wait("$fork_code; scalac -d $working_dir/classes $src_path && jar -cf $jar_path -C $working_dir/classes .");
-
-        rmtree("$working_dir/classes");
-
-    }
+    process_macro_scala_compile($jar_path, $src_path, $with_runtime) unless ( -e $jar_path);
 
     my $hash = get_file_hash($jar_path);
     $global_attached_files = [@$global_attached_files,
@@ -563,6 +546,25 @@ sub process_macro_scala_sub {
          'for_subttr' => $for_subttr}];
     [{'name' => $jar_fname,
       'output_fname' => $output_fname}];
+}
+
+sub process_macro_scala_compile {
+    my ($jar_path, $src_path, $with_runtime) = @_;
+
+    if (-e "$working_dir/classes") {
+        rmtree("$working_dir/classes");
+    }
+    mkdir("$working_dir/classes");
+
+    my $fork_code = ":";
+    if ($with_runtime) {
+        die "SCALA_HOME Not found" unless ($ENV{'SCALA_HOME'});
+        $fork_code = "$fork_code; (cd $working_dir/classes; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar) || exit 1"
+    }
+
+    fork_and_wait("$fork_code; scalac -d $working_dir/classes $src_path && jar -cf $jar_path -C $working_dir/classes .");
+
+    rmtree("$working_dir/classes");
 }
 
 sub wrap_scala_class_lines {
