@@ -22,10 +22,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-7f65343e9f294c725b36a7fa2124d647 ]; then
-    touch $HOME/.ttr/file-7f65343e9f294c725b36a7fa2124d647
+if [ -e $HOME/.ttr/file-6d0572381250b893d5d833bac0e84ec3 ]; then
+    touch $HOME/.ttr/file-6d0572381250b893d5d833bac0e84ec3
 else
-cat <<\EOF_7f65343e9f294c725b36a7fa2124d647 > $HOME/.ttr/file-7f65343e9f294c725b36a7fa2124d647
+cat <<\EOF_6d0572381250b893d5d833bac0e84ec3 > $HOME/.ttr/file-6d0572381250b893d5d833bac0e84ec3
 use strict;
 use warnings;
 use utf8;
@@ -357,6 +357,20 @@ sub parse_args {
     (\@args, $heredoc_marker);
 }
 
+sub parse_args_for_embedded_mode {
+    my ($arg_str) = @_;
+    my @args = ();
+    while (length($arg_str) > 0) {
+        if ($arg_str =~ /\A(\S+)\s*(.*)\z/) {
+            push(@args, $1);
+            $arg_str = $2;
+        } else {
+            die "Cannot parse line: $arg_str\n";
+        }
+    }
+    \@args;
+}
+
 sub parse_heredoc {
     my ($rest_lines, $heredoc_marker, $ext) = @_;
     my @result_lines = ();
@@ -471,9 +485,9 @@ sub _process_macro_include_file_preexec_sub {
     my $writer;
     my $command;
     if ($build_only) {
-        $command = "ttr --build --sh";
+        $command = "ttr --build";
     } else {
-        $command = "ttr --sh";
+        $command = "ttr";
     }
     my $pid = open2($reader, $writer, $command);
     unless ($pid) {
@@ -697,8 +711,7 @@ sub fork_and_wait {
 
 my $build_flag = undef;
 my $input_file = "";
-my $embedded_mode = undef;
-my $always_sh = undef;
+my $thru_flag = undef;
 my @script_args = ();
 my $script_args_flag = undef;
 
@@ -716,11 +729,11 @@ while () {
     } elsif ($arg eq "--cross") {
         $cross_flag = 1;
     } elsif ($arg eq "-x") {
-        $embedded_mode = 1;
-    } elsif ($arg eq "--sh") {
-        $always_sh = 1;
-    } elsif ($arg eq "--thru") {
         # ignore
+    } elsif ($arg eq "--sh") {
+        # ignore
+    } elsif ($arg eq "--thru") {
+        $thru_flag = 1;
     } elsif ($input_file eq "") {
         $input_file = $arg;
     } elsif ($arg eq "--") {
@@ -761,8 +774,7 @@ sub _process_lines_impl {
     my ($input_lines, $for_subttr, $input_file, $build_flag) = @_;
     my $shebang_line;
     my $shebang_command;
-    my $always_sh = $for_subttr;
-    ($input_lines, $shebang_line, $shebang_command) = preprocess_lines($input_lines, $always_sh);
+    ($input_lines, $shebang_line, $shebang_command) = preprocess_lines($input_lines, ($thru_flag && !$for_subttr));
     if ($shebang_command) {
         die if ($for_subttr);
         exec_shebang_command($input_file, $input_lines, $shebang_command, $build_flag);
@@ -793,15 +805,47 @@ sub _process_lines_impl {
 }
 
 sub preprocess_lines {
-    my ($input_lines, $always_sh) = @_;
-    my $shebang_line;
+    my ($input_lines, $thru_flag) = @_;
+    my @input_lines = @$input_lines;
     my $shebang_command;
-    ($input_lines, $shebang_line, $shebang_command) = preprocess_lines_shebang($input_lines, $always_sh);
-    $input_lines = preprocess_lines_parse_embedded($input_lines);
+    my $shebang_line;
+    if (@input_lines > 0 && $input_lines[0] =~ /\A#!\//) {
+        $shebang_line = shift(@input_lines);
+        $shebang_command = get_shebang_line_command($shebang_line);
+        if ($shebang_command) {
+            unshift(@input_lines, $shebang_line);
+            $shebang_line = undef;
+            unless ($thru_flag) {
+                @input_lines = @{preprocess_lines_wrap_sh(\@input_lines, $shebang_command)};
+                $shebang_command = undef;
+            }
+        }
+    }
+    $input_lines = preprocess_lines_parse_embedded(\@input_lines);
     ($input_lines, $shebang_line, $shebang_command)
 }
 
 sub preprocess_lines_parse_embedded {
+    my ($input_lines) = @_;
+    if (@$input_lines > 0 && $input_lines->[0] =~ /\Aexec\s+ttr\s+(.+)\z/) {
+        # 行頭が exec の場合
+        #my $embedded_args = parse_args_for_embedded_mode($1);
+        my @new_input_lines = @$input_lines;
+        shift(@new_input_lines);
+        $input_lines = \@new_input_lines;
+    } elsif (@$input_lines > 1 && $input_lines-[0] =~ /\A#!\// && $input_lines->[1] =~ /\Aexec\s+ttr\s+(.+)\z/) {
+        # 2行目頭が exec の場合
+        #my $embedded_args = parse_args_for_embedded_mode($1);
+        my @new_input_lines = @$input_lines;
+        shift(@new_input_lines);
+        shift(@new_input_lines);
+        $input_lines = \@new_input_lines;
+    }
+    preprocess_lines_parse_embedded_sub($input_lines);
+}
+
+# `#!ttr` を探す
+sub preprocess_lines_parse_embedded_sub {
     my ($input_lines) = @_;
     my @new_input_lines = ();
     my $f = 0;
@@ -828,30 +872,17 @@ sub preprocess_lines_parse_embedded {
     \@new_input_lines;
 }
 
-sub preprocess_lines_shebang {
-    my ($input_lines, $always_sh) = @_;
-    my @input_lines = @$input_lines;
-    my $shebang_command = undef;
-    my $shebang_line = undef;
-    if (@input_lines > 0) {
-        $shebang_line = $input_lines[0];
-        if      ($shebang_line =~ /\A#!\/[^ ]+sh /) {
-            shift(@input_lines);
-        } elsif ($shebang_line =~ /\A#!\/[^ ]+sh\z/) {
-            shift(@input_lines);
-        } elsif ($shebang_line =~ /\A#!(\/.+)\z/) {
-            $shebang_command = $1;
-            if ($always_sh) {
-                @input_lines = @{preprocess_lines_wrap_sh(\@input_lines, $shebang_command)};
-                $shebang_command = undef;
-                $shebang_line = "#!/bin/sh";
-            } else {
-                shift(@input_lines);
-                $shebang_line = undef;
-            }
-        }
+sub get_shebang_line_command {
+    my ($shebang_line) = @_;
+    if ($shebang_line =~      /\A#!\/[^ ]+sh /) {
+        undef;
+    } elsif ($shebang_line =~ /\A#!\/[^ ]+sh\z/) {
+        undef;
+    } elsif ($shebang_line =~ /\A#!(\/.+)\z/) {
+        $1;
+    } else {
+        die $shebang_line;
     }
-    (\@input_lines, $shebang_line, $shebang_command);
 }
 
 sub preprocess_lines_wrap_sh {
@@ -915,9 +946,9 @@ if ($build_flag) {
     fork_and_wait("sh", $script_path, @script_args);
 }
 
-EOF_7f65343e9f294c725b36a7fa2124d647
+EOF_6d0572381250b893d5d833bac0e84ec3
 fi
-ln -f -s $HOME/.ttr/file-7f65343e9f294c725b36a7fa2124d647 $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-6d0572381250b893d5d833bac0e84ec3 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 
