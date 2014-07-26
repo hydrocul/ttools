@@ -718,6 +718,8 @@ while () {
         $embedded_mode = 1;
     } elsif ($arg eq "--sh") {
         $always_sh = 1;
+    } elsif ($arg eq "--thru") {
+        # ignore
     } elsif ($input_file eq "") {
         $input_file = $arg;
     } elsif ($arg eq "--") {

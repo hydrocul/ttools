@@ -22,10 +22,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-298d9cd48dfc7bc003d0048b1642de6a ]; then
-    touch $HOME/.ttr/file-298d9cd48dfc7bc003d0048b1642de6a
+if [ -e $HOME/.ttr/file-7f65343e9f294c725b36a7fa2124d647 ]; then
+    touch $HOME/.ttr/file-7f65343e9f294c725b36a7fa2124d647
 else
-cat <<\EOF_298d9cd48dfc7bc003d0048b1642de6a > $HOME/.ttr/file-298d9cd48dfc7bc003d0048b1642de6a
+cat <<\EOF_7f65343e9f294c725b36a7fa2124d647 > $HOME/.ttr/file-7f65343e9f294c725b36a7fa2124d647
 use strict;
 use warnings;
 use utf8;
@@ -719,6 +719,8 @@ while () {
         $embedded_mode = 1;
     } elsif ($arg eq "--sh") {
         $always_sh = 1;
+    } elsif ($arg eq "--thru") {
+        # ignore
     } elsif ($input_file eq "") {
         $input_file = $arg;
     } elsif ($arg eq "--") {
@@ -913,9 +915,9 @@ if ($build_flag) {
     fork_and_wait("sh", $script_path, @script_args);
 }
 
-EOF_298d9cd48dfc7bc003d0048b1642de6a
+EOF_7f65343e9f294c725b36a7fa2124d647
 fi
-ln -f -s $HOME/.ttr/file-298d9cd48dfc7bc003d0048b1642de6a $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-7f65343e9f294c725b36a7fa2124d647 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 
