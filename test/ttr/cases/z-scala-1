@@ -1,0 +1,11 @@
+#!/bin/sh
+
+sh $WORKING_DIR/test.sh
+
+##file test.sh --prebuild <<EOF_FILE
+    scala -cp $WORKING_DIR/main.jar Main
+
+    ##scala --jar main.jar --wrap Main <<EOF_SCALA
+        println("Hello");
+    EOF_SCALA
+EOF_FILE

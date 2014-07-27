@@ -1,0 +1,8 @@
+#!/bin/sh
+
+sh $WORKING_DIR/test.sh
+
+##file test.sh --scala <<EOF_FILE
+    //##wrap Main
+    println("Hello");
+EOF_FILE

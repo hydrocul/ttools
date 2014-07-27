@@ -53,9 +53,9 @@ my $working_dir = undef;
 
 my $global_attached_files = [];
 # グローバル
-# name, output_fname, hash, (body), (binary_path), (for_subttr), (copy_flag)
+# (name), output_fname, (alias), hash, (body), (binary_path), (for_subttr), (copy_flag)
 # ttrごとに
-# name, output_fname, (copy_flag)
+# (name), output_fname, (copy_flag)
 
 my $global_hash = undef;
 
@@ -85,10 +85,16 @@ sub create_heredoc_sh {
     my ($attached_file, $subttr_flag) = @_;
     my @result_lines = ();
     my $filename = $attached_file->{'name'};
-    push(@result_lines, "# $filename");
-    my $dirname = dirname($filename);
-    if ($dirname ne '.') {
-        push(@result_lines, "mkdir -p \$WORKING_DIR/$dirname");
+    if (defined($filename)) {
+        push(@result_lines, "# $filename");
+    } else {
+        push(@result_lines, "# $attached_file->{output_fname}");
+    }
+    if (defined($filename)) {
+        my $dirname = dirname($filename);
+        if ($dirname ne '.') {
+            push(@result_lines, "mkdir -p \$WORKING_DIR/$dirname");
+        }
     }
     my $output_fname = $attached_file->{'output_fname'};
     my $hash = $attached_file->{'hash'};
@@ -121,8 +127,18 @@ sub create_heredoc_sh {
             push(@result_lines, "EOF_$hash");
         }
         push(@result_lines, "fi");
+        if ($attached_file->{'alias'}) {
+            my $alias = $attached_file->{'alias'};
+            push(@result_lines, "if [ -e \$HOME/.ttr/$alias ]; then");
+            push(@result_lines, "    touch \$HOME/.ttr/$alias");
+            push(@result_lines, "else");
+            push(@result_lines, "    ln -s \$HOME/.ttr/$output_fname \$HOME/.ttr/$alias");
+            push(@result_lines, "fi");
+        }
     }
     if ($for_subttr && !$subttr_flag) {
+        # nop
+    } elsif (!defined($filename)) {
         # nop
     } elsif ($attached_file->{'copy_flag'}) {
         push(@result_lines, "cp \$HOME/.ttr/$output_fname \$WORKING_DIR/$filename");
@@ -266,6 +282,7 @@ sub process_macro_lines_rest {
         my $ttr_flag = undef;
         my $preexec_flag = undef;
         my $prebuild_flag = undef;
+        my $scala_flag = undef;
         while (@$args) {
             my $a = shift(@$args);
             if ($a eq '--copy') {
@@ -276,6 +293,8 @@ sub process_macro_lines_rest {
                 $preexec_flag = 1;
             } elsif ($a eq '--prebuild') {
                 $prebuild_flag = 1;
+            } elsif ($a eq '--scala') {
+                $scala_flag = 1;
             } elsif (!defined $fname) {
                 $fname = validate_filename($a);
             }
@@ -283,7 +302,7 @@ sub process_macro_lines_rest {
         }
         die "Missing argument of \`##file\`\n" if (!defined($fname));
         my ($attached_files, $rest_lines) = process_macro_include_file(
-            $fname, $copy_flag, $ttr_flag, $preexec_flag, $prebuild_flag, $heredoc_marker, \@rest_lines, $for_subttr);
+            $fname, $copy_flag, $ttr_flag, $preexec_flag, $prebuild_flag, $scala_flag, $heredoc_marker, \@rest_lines, $for_subttr);
         @attached_files = @$attached_files;
         @rest_lines = @$rest_lines;
         $dirty = 1;
@@ -411,7 +430,7 @@ sub remove_indent {
 }
 
 sub process_macro_include_file {
-    my ($filename, $copy_flag, $ttr_flag, $preexec_flag, $prebuild_flag, $heredoc_marker, $rest_lines, $for_subttr) = @_;
+    my ($filename, $copy_flag, $ttr_flag, $preexec_flag, $prebuild_flag, $scala_flag, $heredoc_marker, $rest_lines, $for_subttr) = @_;
     my $include_lines;
     my $already = undef;
     if (defined $heredoc_marker) {
@@ -440,6 +459,8 @@ sub process_macro_include_file {
             $include_lines = process_macro_include_file_preexec($include_lines);
         } elsif ($prebuild_flag) {
             $include_lines = process_macro_include_file_prebuild($include_lines);
+        } elsif ($scala_flag) {
+            $include_lines = scala_translate($include_lines);
         }
         my $global_copy_flag = $copy_flag && !$for_subttr;
         my $hash = get_lines_hash($include_lines);
@@ -457,7 +478,7 @@ sub process_macro_include_file {
              'body' => $include_lines,
              'for_subttr' => $for_subttr,
              'copy_flag' => $global_copy_flag}];
-        if ($ttr_flag) {
+        if ($ttr_flag && !$preexec_flag && !$prebuild_flag && !$scala_flag) {
             $include_lines = process_lines_for_subttr($include_lines);
             $global_attached_files->[$c]->{'body'} = $include_lines;
         }
@@ -550,7 +571,11 @@ sub process_macro_scala_sub {
         $output_fname = "scala-jar-$src_hash.jar";
     }
     my $jar_path = "$HOME/.ttr/$output_fname";
-    process_macro_scala_compile($jar_path, $src_path, $with_runtime) unless ( -e $jar_path);
+    if ( -e $jar_path && !$ENV{'TTR_TEST'}) {
+        `touch $jar_path`;
+    } else {
+        process_macro_scala_compile($jar_path, $src_path, $with_runtime);
+    }
 
     my $hash = get_file_hash($jar_path);
     $global_attached_files = [@$global_attached_files,
@@ -576,7 +601,14 @@ sub process_macro_scala_compile {
         $fork_code = "$fork_code; (cd $working_dir/classes; jar -xf $ENV{SCALA_HOME}/lib/scala-library.jar) || exit 1"
     }
 
-    fork_and_wait("$fork_code; scalac -d $working_dir/classes $src_path && jar -cf $jar_path -C $working_dir/classes .");
+    $fork_code = "$fork_code; scalac -d $working_dir/classes $src_path || exit 1";
+    if ($ENV{'TTR_TEST'}) {
+        # タイムスタンプが違うとjarのバイナリが異なってしまい、
+        # テストしづらいので、
+        # テストの場合はタイムスタンプを強制的に設定する。
+        $fork_code = "$fork_code; find $working_dir/classes | xargs touch -t 1310290000.00";
+    }
+    fork_and_wait("$fork_code; jar -cMf $jar_path -C $working_dir/classes .");
 
     rmtree("$working_dir/classes");
 }
@@ -943,6 +975,125 @@ if ($build_flag) {
     print FH "$_\n" foreach (@$result);
     close(FH);
     fork_and_wait("sh", $script_path, @script_args);
+}
+
+sub scala_translate {
+    my ($input_lines) = @_;
+    my $shell_command;
+    my $runtime_flag;
+    my $wrap_class_name;
+    my @build_sbt_lines = ();
+    my @scala_source_lines = ();
+    my $build_sbt_flag;
+    foreach (@$input_lines) {
+        if ($build_sbt_flag) {
+            if (/\A\s*\/\/\s*##\s*end\s+of\s+build\.sbt/) {
+                $build_sbt_flag = undef;
+            } else {
+                push(@build_sbt_lines, $_);
+            }
+        } else {
+            if (/\A\s*\/\/\s*##\s*build.sbt/) {
+                $build_sbt_flag = 1;
+            } elsif (/\A\s*\/\/\s*##\s*-c\s+(.+)\z/) {
+                $shell_command = $1;
+                if ($shell_command eq "java" || $shell_command =~ /\Ajava\s+/) {
+                    $runtime_flag = 1;
+                }
+            } elsif (/\A\s*\/\/\s*##\s*wrap\s+(\S+)/) {
+                $wrap_class_name = $1;
+            } else {
+                push(@scala_source_lines, $_);
+            }
+        }
+    }
+    if ($wrap_class_name) {
+        unshift(@scala_source_lines, "object $wrap_class_name { def main(args: Array[String]): Unit = {");
+        push(@scala_source_lines, "} }");
+    }
+    if (!defined($shell_command)) {
+        $shell_command = "scala";
+    }
+    if (defined($wrap_class_name)) {
+        if ($shell_command eq "java") {
+            $shell_command = "java $wrap_class_name";
+        } elsif ($shell_command eq "scala") {
+            $shell_command = "scala $wrap_class_name";
+        }
+    }
+
+    create_working_dir();
+
+    my $src_hash = get_lines_hash(\@scala_source_lines);
+
+    my $jar_ln_output_fname = "scala-jar-$src_hash.jar";
+
+    my $classpath = "\$HOME\/.ttr\/$jar_ln_output_fname";
+    if ($runtime_flag) {
+        die "SCALA_HOME Not found" unless ($ENV{'SCALA_HOME'});
+        my $runtime_hash = get_file_hash("$ENV{SCALA_HOME}/lib/scala-library.jar");
+        if ( ! -e "$HOME/.ttr/file-$runtime_hash") {
+            fork_and_wait("ln $ENV{SCALA_HOME}/lib/scala-library.jar \$HOME/.ttr/file-$runtime_hash");
+        }
+        $global_attached_files = [@$global_attached_files,
+            {'output_fname' => "file-$runtime_hash",
+             'alias' => "file-$runtime_hash.jar",
+             'hash' => $runtime_hash,
+             'for_subttr' => 1}];
+        $classpath = "$classpath:\$HOME/.ttr/file-$runtime_hash.jar";
+    }
+    $shell_command =~ s/\A(java|scala)\s+/$1 -cp $classpath /g;
+
+    my $jar_hash;
+    my $jar_output_fname;
+
+    if (-e "$HOME/.ttr/$jar_ln_output_fname" && !$ENV{'TTR_TEST'}) {
+        $jar_output_fname = basename(readlink("$HOME/.ttr/$jar_ln_output_fname"));
+        unless ($jar_output_fname =~ /\Afile-(.+)\z/) {
+            die;
+        }
+        $jar_hash = $1;
+    } else {
+
+        my $src_path = "$working_dir/script.scala";
+        my $jar_path = "$working_dir/script.jar";
+
+        open(FP, ">", $src_path);
+        print FP "$_\n" foreach (@scala_source_lines);
+        close(FP);
+
+        if (-e "$working_dir/classes") {
+            rmtree("$working_dir/classes");
+        }
+        mkdir("$working_dir/classes");
+
+        my $fork_code = "scalac -d $working_dir/classes $src_path || exit 1";
+        if ($ENV{'TTR_TEST'}) {
+            # タイムスタンプが違うとjarのバイナリが異なってしまい、
+            # テストしづらいので、
+            # テストの場合はタイムスタンプを強制的に設定する。
+            $fork_code = "$fork_code; find $working_dir/classes | xargs touch -t 1310290000.00";
+        }
+        fork_and_wait("$fork_code; jar -cMf $jar_path -C $working_dir/classes .");
+
+        rmtree("$working_dir/classes");
+
+        $jar_hash = get_file_hash($jar_path);
+        $jar_output_fname = "file-$jar_hash";
+        fork_and_wait("mv $jar_path \$HOME/.ttr/$jar_output_fname");
+
+    }
+
+    my @new_input_lines = ();
+    push(@new_input_lines, $shell_command);
+
+    $global_attached_files = [@$global_attached_files,
+        {'output_fname' => $jar_output_fname,
+         'alias' => $jar_ln_output_fname,
+         'hash' => $jar_hash,
+         'for_subttr' => 1}];
+
+    \@new_input_lines;
 }
 
 END_OF_TTR_PL

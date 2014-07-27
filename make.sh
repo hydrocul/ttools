@@ -49,6 +49,8 @@ done
 
 mkdir -p test/ttr/actual
 
+export TTR_TEST=1
+
 RESULT=0
 for f in `ls test/ttr/cases`; do
     if [ -f test/ttr/cases/$f ]; then
@@ -56,10 +58,10 @@ for f in `ls test/ttr/cases`; do
         r=0
 
         if [ ! -e test/ttr/expected/$f.translated ]; then
-            touch test/ttr/expected/$f.translated
+            echo "dummy" > test/ttr/expected/$f.translated
         fi
         if [ ! -e test/ttr/expected/$f.result ]; then
-            touch test/ttr/expected/$f.result
+            echo "dummy" > test/ttr/expected/$f.result
         fi
 
         if [ "$r" = 0 ]; then
@@ -68,6 +70,8 @@ for f in `ls test/ttr/cases`; do
                 r=1
                 /bin/echo -e "\e[31m./test/ttr/cases/$f NG\e[0m"
                 diff -u test/ttr/expected/$f.translated test/ttr/actual/$f.translated.1
+                echo "If this is no problem,"
+                echo "    cp test/ttr/actual/$f.translated.1 test/ttr/expected/$f.translated"
             fi
         fi
 
@@ -86,6 +90,8 @@ for f in `ls test/ttr/cases`; do
                 r=1
                 /bin/echo -e "\e[31m./test/ttr/cases/$f NG\e[0m"
                 diff -u test/ttr/expected/$f.result test/ttr/actual/$f.result.1
+                echo "If this is no problem,"
+                echo "    cp test/ttr/actual/$f.result.1 test/ttr/expected/$f.result"
             fi
         fi
 
