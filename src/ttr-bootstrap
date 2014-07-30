@@ -22,10 +22,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-62d53183b6bc5eab1d8d4334398884cc ]; then
-    touch $HOME/.ttr/file-62d53183b6bc5eab1d8d4334398884cc
+if [ -e $HOME/.ttr/file-503cd5e67f9d97949df2d9ba9ffd915b ]; then
+    touch $HOME/.ttr/file-503cd5e67f9d97949df2d9ba9ffd915b
 else
-cat <<\EOF_62d53183b6bc5eab1d8d4334398884cc > $HOME/.ttr/file-62d53183b6bc5eab1d8d4334398884cc
+cat <<\EOF_503cd5e67f9d97949df2d9ba9ffd915b > $HOME/.ttr/file-503cd5e67f9d97949df2d9ba9ffd915b
 use strict;
 use warnings;
 use utf8;
@@ -506,7 +506,11 @@ sub _process_macro_include_file_preexec_sub {
     my $writer;
     my $command;
     if ($build_only) {
-        $command = "ttr --build";
+        if ($cross_flag) {
+            $command = "ttr --build --cross";
+        } else {
+            $command = "ttr --build";
+        }
     } else {
         $command = "ttr";
     }
@@ -1048,7 +1052,7 @@ sub scala_translate {
     my $jar_hash;
     my $jar_output_fname;
 
-    if (-e "$HOME/.ttr/$jar_ln_output_fname" && !$ENV{'TTR_TEST'}) {
+    if (-e "$HOME/.ttr/$jar_ln_output_fname" && -l "$HOME/.ttr/$jar_ln_output_fname" && !$ENV{'TTR_TEST'}) {
         $jar_output_fname = basename(readlink("$HOME/.ttr/$jar_ln_output_fname"));
         unless ($jar_output_fname =~ /\Afile-(.+)\z/) {
             die;
@@ -1097,9 +1101,9 @@ sub scala_translate {
     \@new_input_lines;
 }
 
-EOF_62d53183b6bc5eab1d8d4334398884cc
+EOF_503cd5e67f9d97949df2d9ba9ffd915b
 fi
-ln -f -s $HOME/.ttr/file-62d53183b6bc5eab1d8d4334398884cc $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-503cd5e67f9d97949df2d9ba9ffd915b $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 

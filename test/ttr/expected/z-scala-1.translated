@@ -22,12 +22,21 @@ trap ":" 2 3 15
 ################################################################################
 # test.sh
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-7482f41aab4a1a98e902bfe26b296127 ]; then
-    touch $HOME/.ttr/file-7482f41aab4a1a98e902bfe26b296127
+if [ -e $HOME/.ttr/file-853fa3c729a1438bd1b12234812f0f85 ]; then
+    touch $HOME/.ttr/file-853fa3c729a1438bd1b12234812f0f85
 else
-cat <<\EOF_7482f41aab4a1a98e902bfe26b296127 > $HOME/.ttr/file-7482f41aab4a1a98e902bfe26b296127
+cat <<\EOF_853fa3c729a1438bd1b12234812f0f85 > $HOME/.ttr/file-853fa3c729a1438bd1b12234812f0f85
 if [ -z "$WORKING_DIR" ]; then
-    export WORKING_DIR=`mktemp -d -p /run/user/1000`
+    if [ -z "$UID" ]; then
+        UID=`id -u`
+    fi
+    if [ -d /run/user/$UID ]; then
+        export WORKING_DIR=`mktemp -d -p /run/user/$UID`
+    elif [ -d /dev/shm ]; then
+        export WORKING_DIR=`mktemp -d -p /dev/shm`
+    else
+        export WORKING_DIR=`mktemp -d`
+    fi
 else
     export WORKING_DIR=$WORKING_DIR/working-$$
     mkdir $WORKING_DIR
@@ -76,9 +85,9 @@ scala -cp $WORKING_DIR/main.jar Main
 RET=$?
 rm -rf $WORKING_DIR 2>/dev/null
 exit $RET
-EOF_7482f41aab4a1a98e902bfe26b296127
+EOF_853fa3c729a1438bd1b12234812f0f85
 fi
-ln -f -s $HOME/.ttr/file-7482f41aab4a1a98e902bfe26b296127 $WORKING_DIR/test.sh
+ln -f -s $HOME/.ttr/file-853fa3c729a1438bd1b12234812f0f85 $WORKING_DIR/test.sh
 
 ################################################################################
 sh $WORKING_DIR/test.sh

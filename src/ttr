@@ -505,7 +505,11 @@ sub _process_macro_include_file_preexec_sub {
     my $writer;
     my $command;
     if ($build_only) {
-        $command = "ttr --build";
+        if ($cross_flag) {
+            $command = "ttr --build --cross";
+        } else {
+            $command = "ttr --build";
+        }
     } else {
         $command = "ttr";
     }
@@ -1047,7 +1051,7 @@ sub scala_translate {
     my $jar_hash;
     my $jar_output_fname;
 
-    if (-e "$HOME/.ttr/$jar_ln_output_fname" && !$ENV{'TTR_TEST'}) {
+    if (-e "$HOME/.ttr/$jar_ln_output_fname" && -l "$HOME/.ttr/$jar_ln_output_fname" && !$ENV{'TTR_TEST'}) {
         $jar_output_fname = basename(readlink("$HOME/.ttr/$jar_ln_output_fname"));
         unless ($jar_output_fname =~ /\Afile-(.+)\z/) {
             die;
