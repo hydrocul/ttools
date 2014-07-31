@@ -1020,9 +1020,9 @@ sub scala_translate {
     }
     if (defined($wrap_class_name)) {
         if ($shell_command eq "java") {
-            $shell_command = "java $wrap_class_name";
+            $shell_command = "java $wrap_class_name \"\$@\"";
         } elsif ($shell_command eq "scala") {
-            $shell_command = "scala $wrap_class_name";
+            $shell_command = "scala $wrap_class_name \"\$@\"";
         }
     }
 

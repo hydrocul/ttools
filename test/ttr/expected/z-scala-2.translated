@@ -57,17 +57,69 @@ fi
 ################################################################################
 # test.sh
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-cc49c2836c2d4413d7e6d98b138f6552 ]; then
-    touch $HOME/.ttr/file-cc49c2836c2d4413d7e6d98b138f6552
+if [ -e $HOME/.ttr/file-a2903663190dbeb98c90dcfdf4e22383 ]; then
+    touch $HOME/.ttr/file-a2903663190dbeb98c90dcfdf4e22383
 else
-cat <<\EOF_cc49c2836c2d4413d7e6d98b138f6552 > $HOME/.ttr/file-cc49c2836c2d4413d7e6d98b138f6552
-scala -cp $HOME/.ttr/scala-jar-eba64e4ef2512ee48d0455695840977b.jar Main
-EOF_cc49c2836c2d4413d7e6d98b138f6552
+cat <<\EOF_a2903663190dbeb98c90dcfdf4e22383 > $HOME/.ttr/file-a2903663190dbeb98c90dcfdf4e22383
+scala -cp $HOME/.ttr/scala-jar-eba64e4ef2512ee48d0455695840977b.jar Main "$@"
+EOF_a2903663190dbeb98c90dcfdf4e22383
 fi
-ln -f -s $HOME/.ttr/file-cc49c2836c2d4413d7e6d98b138f6552 $WORKING_DIR/test.sh
+ln -f -s $HOME/.ttr/file-a2903663190dbeb98c90dcfdf4e22383 $WORKING_DIR/test.sh
+
+################################################################################
+# file-da72419155794e4d5c1d2905f303f30a
+mkdir -p $HOME/.ttr
+if [ -e $HOME/.ttr/file-da72419155794e4d5c1d2905f303f30a ]; then
+    touch $HOME/.ttr/file-da72419155794e4d5c1d2905f303f30a
+else
+base64 -d <<EOF_da72419155794e4d5c1d2905f303f30a > $HOME/.ttr/file-da72419155794e4d5c1d2905f303f30a
+UEsDBBQACAgIAAAAXUMAAAAAAAAAAAAAAAALAAQATWFpbiQuY2xhc3P+ygAAjVL7b9JQFP5ueRRK
+dRMGvnVTnIXpcJuPKWgyX/GHTkxQErPE5FLusLO05FJM/LPUBKJLjD/7RxnPLUziRtQ27T3n3PN9
+5/nj59dvANbxgCGxzV2/qIMxzO/x97zicb9Tqbf2hBPqiDGYfUe6vXC173CPM+jb9cev7CdFkuwI
+WmVI1RzP9d2Q6GJWqcmQrEWqCQNpAxoyDPEuOTMUrB17GqYRStfvVBXkWMRfeSFFW+xSPnMMc/Yf
+tqqJJE6kMY8sw/L4ygk8jxJ1A7/SHYS85YkJ58OB67WF1LFgIK/iJ58JzwsWUzhJMu/1hN9mqFn2
+4ZqrJfv/qCmd0zij2M8y5HaOEuk4z5CRYndLSv6h3uszbFoz/P4S8ABJsS5i0aDSlxgYFXGZYemf
+KB1XaDbdd+O0qWfWjNYfNZm4CiuDZZQIHQYH6AVrpu8KrqkeXKd96JEp9GjI+VltbZqo4IaqYY22
+IXzrUj/iXHb6h7o3YTYQR0ZNXE/TAt0h30dBWzBk7YDqbnLpqlpfqp/aFNcXzwfdlpATi9EIBtIR
+T12lJBqqVVgjojjtPaPBES9JMaSRoo/hLmk5OtWj70MbwfwYKbSZOD5xeENwjc7yJ+T2kX89QiF7
+aohzpK58x4UhLmWLX1DWQLYhVodYVxwa7tG/MEZiIwqspJu4RbxVkpNRYI1e43cyG3Qqa7o8wu3y
+Z2xOqczxxYRqSsDovhZ5JXBfxfgFUEsHCNhb5+ciAgAA6AMAAFBLAwQUAAgICAAAAF1DAAAAAAAA
+AAAAAAAACgAAAE1haW4uY2xhc3NFUdFuElEQndndy+XCQrulC8GktWsxbUl0gwnWlvZhF2mthTQU
+wbSVhwtuyRK6a3YXEx78KH3wwQc/wM/wQ4wDifEmk3POzMlMcu6vPz9+AsALKCFoHekHHBBhfSo/
+S3smg4l9NZp644SDiqDH48j/lDyPx3ImEbbbK2JH3v2MLHZvqXr+JJDJPPIaCGy0SLwY4XcKzeOu
+hYpQTOFY72rTYVXULEc7vXypvbEf72joGFK6XGHlA3SxhQVhdas39XBPHFkKU/StunDcJuZVs/zq
+WflwVBALx0XNHd5vDjqPWGp3yxJOC/niaVLKb++Yqul08UxjSp/ufaB714bc5UItDS8s5FwV/Zh8
+LFXvYE6eI2u+PTlcayn60eLCstJczbLCvn1zarAvxth1UlZBiOYT1LpesfK+c8vUc2NDSrMR945P
+9lzHyFFk2gOFh1Dcv2v/D6+XRH4waRwMKIxluBUOWQTeuXrdb7cqxNqrbkOHHOQF6LCmg4BMhphB
+K5vhRw8h0wvn0dg782ckytfzIPEfvIEf+6OZ5wRBmMjEDwPKOf3vB6AGCmiwfEj7aCNhgdQm9ZEw
+/Q3Wq99h4+vKo1IfaMLAJMySI0XFY0hDcTlmAH8BUEsHCIT+kCjSAQAAJwIAAFBLAQIUABQACAgI
+AAAAXUPYW+fnIgIAAOgDAAALAAQAAAAAAAAAAAAAAAAAAABNYWluJC5jbGFzc/7KAABQSwECFAAU
+AAgICAAAAF1DhP6QKNIBAAAnAgAACgAAAAAAAAAAAAAAAABfAgAATWFpbi5jbGFzc1BLBQYAAAAA
+AgACAHUAAABpBAAAAAA=
+EOF_da72419155794e4d5c1d2905f303f30a
+fi
+if [ -e $HOME/.ttr/scala-jar-20737849c8da14143f686d38ede52bf8.jar ]; then
+    touch $HOME/.ttr/scala-jar-20737849c8da14143f686d38ede52bf8.jar
+else
+    ln -s $HOME/.ttr/file-da72419155794e4d5c1d2905f303f30a $HOME/.ttr/scala-jar-20737849c8da14143f686d38ede52bf8.jar
+fi
+
+################################################################################
+# test2.sh
+mkdir -p $HOME/.ttr
+if [ -e $HOME/.ttr/file-3b342f0b98e7666fc66286eb65b469e6 ]; then
+    touch $HOME/.ttr/file-3b342f0b98e7666fc66286eb65b469e6
+else
+cat <<\EOF_3b342f0b98e7666fc66286eb65b469e6 > $HOME/.ttr/file-3b342f0b98e7666fc66286eb65b469e6
+scala -cp $HOME/.ttr/scala-jar-20737849c8da14143f686d38ede52bf8.jar Main "World!" "$@"
+EOF_3b342f0b98e7666fc66286eb65b469e6
+fi
+ln -f -s $HOME/.ttr/file-3b342f0b98e7666fc66286eb65b469e6 $WORKING_DIR/test2.sh
 
 ################################################################################
 sh $WORKING_DIR/test.sh
+
+sh $WORKING_DIR/test2.sh foo bar
 
 ################################################################################
 )

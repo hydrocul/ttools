@@ -22,10 +22,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-503cd5e67f9d97949df2d9ba9ffd915b ]; then
-    touch $HOME/.ttr/file-503cd5e67f9d97949df2d9ba9ffd915b
+if [ -e $HOME/.ttr/file-0b4ee52676261ab126595cd8a89b4e00 ]; then
+    touch $HOME/.ttr/file-0b4ee52676261ab126595cd8a89b4e00
 else
-cat <<\EOF_503cd5e67f9d97949df2d9ba9ffd915b > $HOME/.ttr/file-503cd5e67f9d97949df2d9ba9ffd915b
+cat <<\EOF_0b4ee52676261ab126595cd8a89b4e00 > $HOME/.ttr/file-0b4ee52676261ab126595cd8a89b4e00
 use strict;
 use warnings;
 use utf8;
@@ -1021,9 +1021,9 @@ sub scala_translate {
     }
     if (defined($wrap_class_name)) {
         if ($shell_command eq "java") {
-            $shell_command = "java $wrap_class_name";
+            $shell_command = "java $wrap_class_name \"\$@\"";
         } elsif ($shell_command eq "scala") {
-            $shell_command = "scala $wrap_class_name";
+            $shell_command = "scala $wrap_class_name \"\$@\"";
         }
     }
 
@@ -1101,9 +1101,9 @@ sub scala_translate {
     \@new_input_lines;
 }
 
-EOF_503cd5e67f9d97949df2d9ba9ffd915b
+EOF_0b4ee52676261ab126595cd8a89b4e00
 fi
-ln -f -s $HOME/.ttr/file-503cd5e67f9d97949df2d9ba9ffd915b $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-0b4ee52676261ab126595cd8a89b4e00 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 
