@@ -1,8 +1,9 @@
 #!/bin/sh
 
-scala -cp $WORKING_DIR/main.jar Main
+sh $WORKING_DIR/main.sh
 
-##scala --wrap Main --jar main.jar <<EOF
+##file main.sh --scala <<EOF
+//##wrap Main
 
 val s = (1 until 8).foldLeft((math.random * 128).asInstanceOf[Long])((a, i) => a * 256 + (math.random * 256).asInstanceOf[Long]);
 
