@@ -809,6 +809,9 @@ sub _process_lines_impl {
     my ($input_lines, $for_subttr, $input_file, $build_flag) = @_;
     my $shebang_line;
     my $shebang_command;
+
+    my $old_stack = _process_lines_push_stack();
+
     ($input_lines, $shebang_line, $shebang_command) = preprocess_lines($input_lines, ($thru_flag && !$for_subttr));
     if ($shebang_command) {
         die if ($for_subttr);
@@ -836,7 +839,25 @@ sub _process_lines_impl {
     if ($shebang_line) {
         unshift(@$result, $shebang_line);
     }
+
+    _process_lines_pop_stack($old_stack);
+
     $result;
+}
+
+sub _process_lines_push_stack {
+    my $current_needs_working_dir = $needs_working_dir;
+    my $current_needs_working_dir_hard = $needs_working_dir_hard;
+    my $current_needs_working_dir_perm = $needs_working_dir_perm;
+    $needs_working_dir = undef;
+    $needs_working_dir_hard = undef;
+    $needs_working_dir_perm = undef;
+    [$current_needs_working_dir, $current_needs_working_dir_hard, $current_needs_working_dir_perm];
+}
+
+sub _process_lines_pop_stack {
+    my ($new_val) = @_;
+    ($needs_working_dir, $needs_working_dir_hard, $needs_working_dir_perm) = @$new_val;
 }
 
 sub preprocess_lines {
