@@ -22,10 +22,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-6a747265e3dbfb399014d80bade1c472 ]; then
-    touch $HOME/.ttr/file-6a747265e3dbfb399014d80bade1c472
+if [ -e $HOME/.ttr/file-3f0571eb16e76b7190b34596effbc293 ]; then
+    touch $HOME/.ttr/file-3f0571eb16e76b7190b34596effbc293
 else
-cat <<\EOF_6a747265e3dbfb399014d80bade1c472 > $HOME/.ttr/file-6a747265e3dbfb399014d80bade1c472
+cat <<\EOF_3f0571eb16e76b7190b34596effbc293 > $HOME/.ttr/file-3f0571eb16e76b7190b34596effbc293
 use strict;
 use warnings;
 use utf8;
@@ -1015,19 +1015,37 @@ sub scala_translate {
         if ($build_sbt_flag) {
             if (/\A\s*\/\/\s*##\s*end\s+of\s+build\.sbt/) {
                 $build_sbt_flag = undef;
+                push(@scala_source_lines, "");
             } else {
                 push(@build_sbt_lines, $_);
             }
         } else {
             if (/\A\s*\/\/\s*##\s*build.sbt/) {
                 $build_sbt_flag = 1;
+                push(@scala_source_lines, "");
             } elsif (/\A\s*\/\/\s*##\s*-c\s+(.+)\z/) {
                 $shell_command = $1;
                 if ($shell_command eq "java" || $shell_command =~ /\Ajava\s+/) {
                     $runtime_flag = 1;
                 }
+                push(@scala_source_lines, "");
+            } elsif (/\A\s*\/\/\s*##\s*java\s*\z/) {
+                $shell_command = "java";
+                $runtime_flag = 1;
+                push(@scala_source_lines, "");
+            } elsif (/\A\s*\/\/\s*##\s*java\s+(.+)\z/) {
+                $shell_command = "java $1";
+                $runtime_flag = 1;
+                push(@scala_source_lines, "");
+            } elsif (/\A\s*\/\/\s*##\s*scala\s*\z/) {
+                $shell_command = "scala";
+                push(@scala_source_lines, "");
+            } elsif (/\A\s*\/\/\s*##\s*scala\s+(.+)\z/) {
+                $shell_command = "scala $1";
+                push(@scala_source_lines, "");
             } elsif (/\A\s*\/\/\s*##\s*wrap\s+(\S+)/) {
                 $wrap_class_name = $1;
+                #push(@scala_source_lines, "");
             } else {
                 push(@scala_source_lines, $_);
             }
@@ -1122,9 +1140,9 @@ sub scala_translate {
     \@new_input_lines;
 }
 
-EOF_6a747265e3dbfb399014d80bade1c472
+EOF_3f0571eb16e76b7190b34596effbc293
 fi
-ln -f -s $HOME/.ttr/file-6a747265e3dbfb399014d80bade1c472 $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-3f0571eb16e76b7190b34596effbc293 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 

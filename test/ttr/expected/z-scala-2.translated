@@ -67,23 +67,23 @@ fi
 ln -f -s $HOME/.ttr/file-a2903663190dbeb98c90dcfdf4e22383 $WORKING_DIR/test.sh
 
 ################################################################################
-# file-da72419155794e4d5c1d2905f303f30a
+# file-fff95e4a79dee58ad30d049d34130706
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-da72419155794e4d5c1d2905f303f30a ]; then
-    touch $HOME/.ttr/file-da72419155794e4d5c1d2905f303f30a
+if [ -e $HOME/.ttr/file-fff95e4a79dee58ad30d049d34130706 ]; then
+    touch $HOME/.ttr/file-fff95e4a79dee58ad30d049d34130706
 else
-base64 -d <<EOF_da72419155794e4d5c1d2905f303f30a > $HOME/.ttr/file-da72419155794e4d5c1d2905f303f30a
-UEsDBBQACAgIAAAAXUMAAAAAAAAAAAAAAAALAAQATWFpbiQuY2xhc3P+ygAAjVL7b9JQFP5ueRRK
-dRMGvnVTnIXpcJuPKWgyX/GHTkxQErPE5FLusLO05FJM/LPUBKJLjD/7RxnPLUziRtQ27T3n3PN9
-5/nj59dvANbxgCGxzV2/qIMxzO/x97zicb9Tqbf2hBPqiDGYfUe6vXC173CPM+jb9cev7CdFkuwI
-WmVI1RzP9d2Q6GJWqcmQrEWqCQNpAxoyDPEuOTMUrB17GqYRStfvVBXkWMRfeSFFW+xSPnMMc/Yf
-tqqJJE6kMY8sw/L4ygk8jxJ1A7/SHYS85YkJ58OB67WF1LFgIK/iJ58JzwsWUzhJMu/1hN9mqFn2
-4ZqrJfv/qCmd0zij2M8y5HaOEuk4z5CRYndLSv6h3uszbFoz/P4S8ABJsS5i0aDSlxgYFXGZYemf
-KB1XaDbdd+O0qWfWjNYfNZm4CiuDZZQIHQYH6AVrpu8KrqkeXKd96JEp9GjI+VltbZqo4IaqYY22
-IXzrUj/iXHb6h7o3YTYQR0ZNXE/TAt0h30dBWzBk7YDqbnLpqlpfqp/aFNcXzwfdlpATi9EIBtIR
-T12lJBqqVVgjojjtPaPBES9JMaSRoo/hLmk5OtWj70MbwfwYKbSZOD5xeENwjc7yJ+T2kX89QiF7
-aohzpK58x4UhLmWLX1DWQLYhVodYVxwa7tG/MEZiIwqspJu4RbxVkpNRYI1e43cyG3Qqa7o8wu3y
-Z2xOqczxxYRqSsDovhZ5JXBfxfgFUEsHCNhb5+ciAgAA6AMAAFBLAwQUAAgICAAAAF1DAAAAAAAA
+base64 -d <<EOF_fff95e4a79dee58ad30d049d34130706 > $HOME/.ttr/file-fff95e4a79dee58ad30d049d34130706
+UEsDBBQACAgIAAAAXUMAAAAAAAAAAAAAAAALAAQATWFpbiQuY2xhc3P+ygAAjVJrbxJBFD3Da2FZ
+bYWCb20V60K1a1sfVdCkvuKHrZigJKaJybBMceuyS4bFxJ+lJhBtYvzsjzLeWajElqib7My9d+45
+9/nj59dvANbxgCG5zV2/pIExzO/x99zyuN+x6q094YQa4gxG35FuL1ztO9zjDNp2/fEr+0mJJDuC
+VhnSNcdzfTckurhZbjKkapFqQEdGRwxZhkSXnBmK5o49DdMIpet3qgpyLOK3XkjRFruUzxzDnP2H
+rWoghRMZzCPHsDx+cgLPo0TdwLe6g5C3PDHhfDhwvbaQGhZ0FFT81DPhecFiGidJ5r2e8NsMNdM+
+XHO1bP8fNaVzGmcU+1mG/M5RIg3nGbJS7G5JyT/Ue32GTXOG318CHiAp1kUs6lT6EgOjIi4zLP0T
+peEKzab7bpw29cyc0fqjJgNXYWaxjDKhw+AAvWDO9F3BNdWD67QPPTKFHg25MKutTQMWbqga1mgb
+wrcu9SPBZad/qHsTZh0JZNXEtQwt0B3yfRS0BUPODqjuJpeuqvWlOtSmuL54Pui2hJxY9EYwkI54
+6iol2VCtwhoRJWjvGQ2OeEmKI4M0/Qx3ScvTrT5tH7ERjI+RQpuJ4xOHNwSP0V35hPw+Cq9HKOZO
+DXGO1JXvuDDEpVzpCyoxkG2I1SHWFUcM9+gsjpHYiAIr6SZuEW+V5FQUOE4e+u9kNuhW1kxlhNuV
+z9icUhnjhwnVlIDRey3ySuK+ivELUEsHCJ26hi4iAgAA6AMAAFBLAwQUAAgICAAAAF1DAAAAAAAA
 AAAAAAAACgAAAE1haW4uY2xhc3NFUdFuElEQndndy+XCQrulC8GktWsxbUl0gwnWlvZhF2mthTQU
 wbSVhwtuyRK6a3YXEx78KH3wwQc/wM/wQ4wDifEmk3POzMlMcu6vPz9+AsALKCFoHekHHBBhfSo/
 S3smg4l9NZp644SDiqDH48j/lDyPx3ImEbbbK2JH3v2MLHZvqXr+JJDJPPIaCGy0SLwY4XcKzeOu
@@ -93,28 +93,28 @@ LFXvYE6eI2u+PTlcayn60eLCstJczbLCvn1zarAvxth1UlZBiOYT1LpesfK+c8vUc2NDSrMR945P
 9lzHyFFk2gOFh1Dcv2v/D6+XRH4waRwMKIxluBUOWQTeuXrdb7cqxNqrbkOHHOQF6LCmg4BMhphB
 K5vhRw8h0wvn0dg782ckytfzIPEfvIEf+6OZ5wRBmMjEDwPKOf3vB6AGCmiwfEj7aCNhgdQm9ZEw
 /Q3Wq99h4+vKo1IfaMLAJMySI0XFY0hDcTlmAH8BUEsHCIT+kCjSAQAAJwIAAFBLAQIUABQACAgI
-AAAAXUPYW+fnIgIAAOgDAAALAAQAAAAAAAAAAAAAAAAAAABNYWluJC5jbGFzc/7KAABQSwECFAAU
+AAAAXUOduoYuIgIAAOgDAAALAAQAAAAAAAAAAAAAAAAAAABNYWluJC5jbGFzc/7KAABQSwECFAAU
 AAgICAAAAF1DhP6QKNIBAAAnAgAACgAAAAAAAAAAAAAAAABfAgAATWFpbi5jbGFzc1BLBQYAAAAA
 AgACAHUAAABpBAAAAAA=
-EOF_da72419155794e4d5c1d2905f303f30a
+EOF_fff95e4a79dee58ad30d049d34130706
 fi
-if [ -e $HOME/.ttr/scala-jar-20737849c8da14143f686d38ede52bf8.jar ]; then
-    touch $HOME/.ttr/scala-jar-20737849c8da14143f686d38ede52bf8.jar
+if [ -e $HOME/.ttr/scala-jar-aa88b8aa7f335e7b7f61fca1c6e6147d.jar ]; then
+    touch $HOME/.ttr/scala-jar-aa88b8aa7f335e7b7f61fca1c6e6147d.jar
 else
-    ln -s $HOME/.ttr/file-da72419155794e4d5c1d2905f303f30a $HOME/.ttr/scala-jar-20737849c8da14143f686d38ede52bf8.jar
+    ln -s $HOME/.ttr/file-fff95e4a79dee58ad30d049d34130706 $HOME/.ttr/scala-jar-aa88b8aa7f335e7b7f61fca1c6e6147d.jar
 fi
 
 ################################################################################
 # test2.sh
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-3b342f0b98e7666fc66286eb65b469e6 ]; then
-    touch $HOME/.ttr/file-3b342f0b98e7666fc66286eb65b469e6
+if [ -e $HOME/.ttr/file-875d809247c6f432192137da5c0d7428 ]; then
+    touch $HOME/.ttr/file-875d809247c6f432192137da5c0d7428
 else
-cat <<\EOF_3b342f0b98e7666fc66286eb65b469e6 > $HOME/.ttr/file-3b342f0b98e7666fc66286eb65b469e6
-scala -cp $HOME/.ttr/scala-jar-20737849c8da14143f686d38ede52bf8.jar Main "World!" "$@"
-EOF_3b342f0b98e7666fc66286eb65b469e6
+cat <<\EOF_875d809247c6f432192137da5c0d7428 > $HOME/.ttr/file-875d809247c6f432192137da5c0d7428
+scala -cp $HOME/.ttr/scala-jar-aa88b8aa7f335e7b7f61fca1c6e6147d.jar Main "World!" "$@"
+EOF_875d809247c6f432192137da5c0d7428
 fi
-ln -f -s $HOME/.ttr/file-3b342f0b98e7666fc66286eb65b469e6 $WORKING_DIR/test2.sh
+ln -f -s $HOME/.ttr/file-875d809247c6f432192137da5c0d7428 $WORKING_DIR/test2.sh
 
 ################################################################################
 sh $WORKING_DIR/test.sh
