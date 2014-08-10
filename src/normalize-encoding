@@ -26,7 +26,7 @@ done
 
     sub get_encoding {
         my $encoding = `cat encoding.txt`;
-        $encoding =~ s/^\s*(.+)\s*$/$1/g;
+        $encoding =~ s/\A\s*([-_a-zA-Z0-9]+).*\z/$1/sg;
         print STDERR "Encoding: $encoding\n";
         $encoding;
     }
@@ -51,7 +51,7 @@ done
         }
     }
 
-    open($fh, '|-', 'nkf --guess=1 > encoding.txt');
+    open($fh, '|-', 'nkf --guess > encoding.txt');
     while (my $line = <STDIN>) {
         print $fh $line;
         if ($. <= $max_head_lines_count) {
