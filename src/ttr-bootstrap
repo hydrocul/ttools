@@ -22,10 +22,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-3b8ac2c66b3c5ae7d4ec30c134f9d379 ]; then
-    touch $HOME/.ttr/file-3b8ac2c66b3c5ae7d4ec30c134f9d379
+if [ -e $HOME/.ttr/file-b6437911eb990efd4c04fc7299751f36 ]; then
+    touch $HOME/.ttr/file-b6437911eb990efd4c04fc7299751f36
 else
-cat <<\EOF_3b8ac2c66b3c5ae7d4ec30c134f9d379 > $HOME/.ttr/file-3b8ac2c66b3c5ae7d4ec30c134f9d379
+cat <<\EOF_b6437911eb990efd4c04fc7299751f36 > $HOME/.ttr/file-b6437911eb990efd4c04fc7299751f36
 use strict;
 use warnings;
 use utf8;
@@ -530,7 +530,7 @@ sub _process_macro_include_file_preexec_sub {
 sub get_attached_file_from_global {
     my ($filename) = @_;
     foreach my $attached_file (@$global_attached_files) {
-        if ($attached_file->{'name'} eq $filename) {
+        if (defined($attached_file->{'name'}) && $attached_file->{'name'} eq $filename) {
             return $attached_file->{'output_fname'};
         }
     }
@@ -1142,9 +1142,9 @@ sub scala_translate {
     \@new_input_lines;
 }
 
-EOF_3b8ac2c66b3c5ae7d4ec30c134f9d379
+EOF_b6437911eb990efd4c04fc7299751f36
 fi
-ln -f -s $HOME/.ttr/file-3b8ac2c66b3c5ae7d4ec30c134f9d379 $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-b6437911eb990efd4c04fc7299751f36 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 

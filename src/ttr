@@ -529,7 +529,7 @@ sub _process_macro_include_file_preexec_sub {
 sub get_attached_file_from_global {
     my ($filename) = @_;
     foreach my $attached_file (@$global_attached_files) {
-        if ($attached_file->{'name'} eq $filename) {
+        if (defined($attached_file->{'name'}) && $attached_file->{'name'} eq $filename) {
             return $attached_file->{'output_fname'};
         }
     }
