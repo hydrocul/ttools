@@ -22,10 +22,10 @@ trap ":" 2 3 15
 ################################################################################
 # ttr.pl
 mkdir -p $HOME/.ttr
-if [ -e $HOME/.ttr/file-b6437911eb990efd4c04fc7299751f36 ]; then
-    touch $HOME/.ttr/file-b6437911eb990efd4c04fc7299751f36
+if [ -e $HOME/.ttr/file-b0d317188ec20c1ff15c9147e280f027 ]; then
+    touch $HOME/.ttr/file-b0d317188ec20c1ff15c9147e280f027
 else
-cat <<\EOF_b6437911eb990efd4c04fc7299751f36 > $HOME/.ttr/file-b6437911eb990efd4c04fc7299751f36
+cat <<\EOF_b0d317188ec20c1ff15c9147e280f027 > $HOME/.ttr/file-b0d317188ec20c1ff15c9147e280f027
 use strict;
 use warnings;
 use utf8;
@@ -82,6 +82,8 @@ sub assemble_files {
     \@result_lines;
 }
 
+my @heredoc_published = ();
+
 sub create_heredoc_sh {
     my ($attached_file, $subttr_flag) = @_;
     my @result_lines = ();
@@ -101,33 +103,36 @@ sub create_heredoc_sh {
     my $hash = $attached_file->{'hash'};
     my $for_subttr = $attached_file->{'for_subttr'};
     unless ($subttr_flag) {
-        push(@result_lines, "mkdir -p \$HOME/.ttr");
-        push(@result_lines, "if [ -e \$HOME/.ttr/$output_fname ]; then");
-        push(@result_lines, "    touch \$HOME/.ttr/$output_fname");
-        push(@result_lines, "else");
-        if ($attached_file->{'body'}) {
-            my $lines = $attached_file->{'body'};
-            push(@result_lines, "cat <<\\EOF_$hash > \$HOME/.ttr/$output_fname");
-            push(@result_lines, @$lines);
-            push(@result_lines, "EOF_$hash");
-        } elsif ($attached_file->{'binary_path'}) {
-            my $path = $attached_file->{'binary_path'};
-            push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
-            open(FP, "-|", "cat $path | base64");
-            my @lines = (<FP>);
-            close(FP);
-            push(@result_lines, @{remove_end_of_line(\@lines)});
-            push(@result_lines, "EOF_$hash");
-        } else {
-            my $path = "$HOME/.ttr/$output_fname";
-            push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
-            open(FP, "-|", "cat $path | base64");
-            my @lines = (<FP>);
-            close(FP);
-            push(@result_lines, @{remove_end_of_line(\@lines)});
-            push(@result_lines, "EOF_$hash");
+        unless (grep {$_ eq $output_fname} @heredoc_published) {
+            push(@result_lines, "mkdir -p \$HOME/.ttr");
+            push(@result_lines, "if [ -e \$HOME/.ttr/$output_fname ]; then");
+            push(@result_lines, "    touch \$HOME/.ttr/$output_fname");
+            push(@result_lines, "else");
+            if ($attached_file->{'body'}) {
+                my $lines = $attached_file->{'body'};
+                push(@result_lines, "cat <<\\EOF_$hash > \$HOME/.ttr/$output_fname");
+                push(@result_lines, @$lines);
+                push(@result_lines, "EOF_$hash");
+            } elsif ($attached_file->{'binary_path'}) {
+                my $path = $attached_file->{'binary_path'};
+                push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
+                open(FP, "-|", "cat $path | base64");
+                my @lines = (<FP>);
+                close(FP);
+                push(@result_lines, @{remove_end_of_line(\@lines)});
+                push(@result_lines, "EOF_$hash");
+            } else {
+                my $path = "$HOME/.ttr/$output_fname";
+                push(@result_lines, "base64 -d <<EOF_$hash > \$HOME/.ttr/$output_fname");
+                open(FP, "-|", "cat $path | base64");
+                my @lines = (<FP>);
+                close(FP);
+                push(@result_lines, @{remove_end_of_line(\@lines)});
+                push(@result_lines, "EOF_$hash");
+            }
+            push(@result_lines, "fi");
         }
-        push(@result_lines, "fi");
+        push(@heredoc_published, $output_fname);
         if ($attached_file->{'alias'}) {
             my $alias = $attached_file->{'alias'};
             push(@result_lines, "if [ -e \$HOME/.ttr/$alias ]; then");
@@ -1142,9 +1147,9 @@ sub scala_translate {
     \@new_input_lines;
 }
 
-EOF_b6437911eb990efd4c04fc7299751f36
+EOF_b0d317188ec20c1ff15c9147e280f027
 fi
-ln -f -s $HOME/.ttr/file-b6437911eb990efd4c04fc7299751f36 $WORKING_DIR/ttr.pl
+ln -f -s $HOME/.ttr/file-b0d317188ec20c1ff15c9147e280f027 $WORKING_DIR/ttr.pl
 
 ################################################################################
 # 
