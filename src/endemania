@@ -1,0 +1,419 @@
+#!/bin/sh
+exec ttr "$0" -- "$@"
+
+perl $WORKING_DIR/main.pl "$@"
+
+##file help.txt <<EOF
+
+    Usage: endemania [options] [commands]
+
+    option:
+      --help
+      --each-line
+      -s string
+      -q
+
+    command:
+      url-encode | urlencode
+
+      url-decode | urldecode
+
+      base64-encode
+              Encode into base64 encoding. Encoded string is broken into lines of no
+              more than 76 characters each
+
+      base64-long-encode
+              Encode into base64 encoding. Encoded string is not broken into lines.
+
+      base64-decode
+
+      unicode-encode | unicode-escape
+
+      unicode-decode | unicode-unescape
+
+      *-char-encode | *-char-encode-perl
+
+      *-char-decode | *-char-decode-perl
+
+      utf8-encode
+              alias to utf-8-char-encode-perl
+
+      utf8-decode
+              alias to utf-8-char-decode-perl
+
+      utf16-encode
+              alias to utf-16-be-char-encode-perl
+
+      utf16-decode
+              alias to utf-16-be-char-decode-perl
+
+      hex-encode
+
+      hex-long-encode
+
+      hex-decode
+
+      bin-encode
+
+      bin-long-encode
+
+      bin-decode
+
+    encoding:
+      utf8
+      utf16
+      iso-8859-1
+      sjis
+      eucjp
+
+EOF
+
+##file main.pl <<EOF
+
+    use strict;
+    use warnings;
+    use utf8;
+
+    use Encode qw/decode encode/;
+    use MIME::Base64 qw/encode_base64 decode_base64/;
+    use Unicode::Normalize;
+
+    use IPC::Open2;
+
+    sub pipe_perl_char_encode {
+        my ($charset) = @_;
+        (sub {
+            my ($line) = @_;
+            my $result = encode($charset, $line);
+            $result;
+        }, 'str', 'bin', "charset-char-encode-perl");
+    }
+
+    sub pipe_perl_char_decode {
+        my ($charset) = @_;
+        (sub {
+            my ($line) = @_;
+            my $result = decode($charset, $line);
+            $result;
+        }, 'bin', 'str', "charset-char-decode-perl");
+    }
+
+    sub pipe_url_encode {
+        (sub {
+            my ($line) = @_;
+            my $result = $line;
+            $result =~ s/([^ 0-9a-fA-F])/"%".uc(unpack("H2",$1))/eg;
+            $result =~ s/ /+/g;
+            $result;
+        }, 'bin', 'str', "url-encode");
+    }
+
+    sub pipe_url_decode {
+        (sub {
+            my ($line) = @_;
+            my $result = $line;
+            $result =~ s/\+/ /g;
+            $result =~ s/%([0-9a-fA-F]{2})/pack("H2",$1)/eg;
+            $result;
+        }, 'str', 'bin', "url-decode");
+    }
+
+    sub pipe_base64_encode {
+        (sub {
+            my ($line) = @_;
+            my $result = encode_base64($line);
+            $result;
+        }, 'bin', 'str', "base64-encode");
+    }
+
+    sub pipe_base64_long_encode {
+        (sub {
+            my ($line) = @_;
+            my $result = encode_base64($line, '');
+            $result;
+        }, 'bin', 'str', "base64-long-encode");
+    }
+
+    sub pipe_base64_decode {
+        (sub {
+            my ($line) = @_;
+            my $result = decode_base64($line);
+            $result;
+        }, 'str', 'bin', "base64-decode");
+    }
+
+    sub pipe_unicode_encode {
+        my $p1 = sub {
+            my ($y) = @_;
+            '\\' x (length($y) * 2) . 'u';
+        };
+        my $p2 = sub {
+            my ($ch) = @_;
+            my $c = ord($ch);
+            if ($c <= 0x7E) {
+                return $ch;
+            }
+            sprintf("\\u%04x", $c);
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/(\\+)u/$p1->($1)/eg;
+            $line =~ s/(.)/$p2->($1)/eg;
+            $line;
+         }, 'str', 'str', "unicode-encode");
+    }
+
+    sub pipe_unicode_decode {
+        my $p1 = sub {
+            my ($y, $hex) = @_;
+            my $len = length($y);
+            if ($len % 2 == 0) {
+                return '\\' x ($len / 2) . 'u' . $hex;
+            } else {
+                return '\\' x (($len - 1) / 2) . chr(hex($hex));
+            }
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/(\\+)u+([0-9a-fA-F]{4})/$p1->($1, $2)/eg;
+            $line;
+         }, 'str', 'str', "unicode-decode");
+    }
+
+    sub pipe_hex_encode {
+        my $p = sub {
+            my ($ch) = @_;
+            my $c = ord($ch);
+            sprintf("%02X ", $c);
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/([^\n])/$p->($1)/eg;
+            $line;
+         }, 'bin', 'str', "hex-encode");
+    }
+
+    sub pipe_hex_long_encode {
+        my $p = sub {
+            my ($ch) = @_;
+            my $c = ord($ch);
+            sprintf("%02X ", $c);
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/(.)/$p->($1)/eg;
+            $line;
+         }, 'bin', 'str', "hex-long-encode");
+    }
+
+    sub pipe_hex_decode {
+        my $p = sub {
+            my ($ch) = @_;
+            pack("H2", $ch);
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/([0-9a-fA-F]{2})\s*/$p->($1)/eg;
+            $line;
+         }, 'str', 'bin', "hex-decode");
+    }
+
+    sub pipe_bin_encode {
+        my $p = sub {
+            my ($ch) = @_;
+            my $c = ord($ch);
+            sprintf("%08B ", $c);
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/([^\n])/$p->($1)/eg;
+            $line;
+         }, 'bin', 'str', "bin-encode");
+    }
+
+    sub pipe_bin_long_encode {
+        my $p = sub {
+            my ($ch) = @_;
+            my $c = ord($ch);
+            sprintf("%08B ", $c);
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/(.)/$p->($1)/eg;
+            $line;
+         }, 'bin', 'str', "bin-long-encode");
+    }
+
+    sub pipe_bin_decode {
+        my $p = sub {
+            my ($ch) = @_;
+            pack("B8", $ch);
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/([01]{8})\s*/$p->($1)/eg;
+            $line;
+         }, 'str', 'bin', "bin-decode");
+    }
+
+    my $is_help = '';
+    my $is_each_line = '';
+    my $is_verbose = 1;
+    my @pipesInfo = ();
+    my @lines = ();
+    my $default_encoding = 'utf-8';
+
+    while () {
+        last if (@ARGV == 0);
+        my $a = shift;
+        my @pipeInfo = ();
+        if ($a eq '-s') {
+            last if (@ARGV == 0);
+            my $b = shift;
+            push(@lines, $b);
+        } elsif ($a eq '--help') {
+            $is_help = 1;
+        } elsif ($a eq '--each-line') {
+            $is_each_line = 1;
+        } elsif ($a eq '-q') {
+            $is_verbose = '';
+
+        } elsif ($a eq 'url-encode' || $a eq 'urlencode') {
+            @pipeInfo = pipe_url_encode;
+        } elsif ($a eq 'url-decode' || $a eq 'urldecode') {
+            @pipeInfo = pipe_url_decode;
+
+        } elsif ($a eq 'base64-encode') {
+            @pipeInfo = pipe_base64_encode;
+        } elsif ($a eq 'base64-long-encode') {
+            @pipeInfo = pipe_base64_long_encode;
+        } elsif ($a eq 'base64-decode') {
+            @pipeInfo = pipe_base64_decode;
+
+        } elsif ($a eq 'unicode-encode' || $a eq 'unicode-escape') {
+            @pipeInfo = pipe_unicode_encode();
+        } elsif ($a eq 'unicode-decode' || $a eq 'unicode-unescape') {
+            @pipeInfo = pipe_unicode_decode();
+
+        } elsif ($a =~ /\A(.+)-char-encode\Z/) {
+            @pipeInfo = pipe_perl_char_encode($1);
+        } elsif ($a =~ /\A(.+)-char-decode\Z/) {
+            @pipeInfo = pipe_perl_char_decode($1);
+
+        } elsif ($a =~ /\A(.+)-char-encode-perl\Z/) {
+            @pipeInfo = pipe_perl_char_encode($1);
+        } elsif ($a =~ /\A(.+)-char-decode-perl\Z/) {
+            @pipeInfo = pipe_perl_char_decode($1);
+
+        } elsif ($a eq 'utf8-encode') {
+            @pipeInfo = pipe_perl_char_encode('utf-8');
+        } elsif ($a eq 'utf8-decode') {
+            @pipeInfo = pipe_perl_char_decode('utf-8');
+
+        } elsif ($a eq 'utf16-encode') {
+            @pipeInfo = pipe_perl_char_encode('utf-16-be');
+        } elsif ($a eq 'utf16-decode') {
+            @pipeInfo = pipe_perl_char_decode('utf-16-be');
+
+        } elsif ($a eq 'hex-encode') {
+            @pipeInfo = pipe_hex_encode();
+        } elsif ($a eq 'hex-long-encode') {
+            @pipeInfo = pipe_hex_long_encode();
+        } elsif ($a eq 'hex-decode') {
+            @pipeInfo = pipe_hex_decode();
+
+        } elsif ($a eq 'bin-encode') {
+            @pipeInfo = pipe_bin_encode();
+        } elsif ($a eq 'bin-long-encode') {
+            @pipeInfo = pipe_bin_long_encode();
+        } elsif ($a eq 'bin-decode') {
+            @pipeInfo = pipe_bin_decode();
+
+        } else {
+            die "Illegal command: $a\n";
+        }
+        if (@pipeInfo) {
+            push(@pipesInfo, \@pipeInfo);
+        }
+    }
+
+    sub help {
+        print STDERR "help";
+    }
+
+    if ($is_help) {
+        help();
+        exit;
+    }
+
+    sub createPipes {
+        print "BIN" if ($is_verbose);
+        my @pipes = ();
+        my $prev_type = 'bin';
+        foreach my $p (@pipesInfo) {
+            my ($pipe, $in_type, $out_type, $name) = @$p;
+            if ($prev_type eq 'bin' && $in_type eq 'str') {
+                my ($p) = pipe_perl_char_decode($default_encoding);
+                push(@pipes, $p);
+                print " =[$default_encoding-char-decode]=> STR" if ($is_verbose);
+            } elsif ($prev_type eq 'str' && $in_type eq 'bin') {
+                my ($p) = pipe_perl_char_encode($default_encoding);
+                push(@pipes, $p);
+                print " =[$default_encoding-char-encode]=> BIN" if ($is_verbose);
+            }
+            $prev_type = $out_type;
+            push(@pipes, $pipe);
+            if ($is_verbose) {
+                print " =[$name]=> ";
+                if ($prev_type eq 'str') {
+                    print "STR";
+                } elsif ($prev_type eq 'bin') {
+                    print "BIN";
+                }
+            }
+        }
+        if ($prev_type eq 'str') {
+            my ($p) = pipe_perl_char_encode($default_encoding);
+            push(@pipes, $p);
+            print " =[$default_encoding-char-encode]=> BIN" if ($is_verbose);
+        }
+        print "\n";
+        @pipes;
+    }
+
+    my @pipes = createPipes();
+
+    if (@lines) {
+        foreach my $line (@lines) {
+            foreach my $p (@pipes) {
+                $line = $p->($line);
+            }
+            print $line;
+            print "\n";
+        }
+    } elsif ($is_each_line) {
+        while (my $line = <STDIN>) {
+            my $exists_lf = '';
+            if ($line =~ /\A(.*)\n\Z/) {
+                $line = $1;
+                $exists_lf = 1;
+            }
+            foreach my $p (@pipes) {
+                $line = $p->($line);
+            }
+            print $line;
+            if ($exists_lf) {
+                print "\n";
+            }
+        }
+    } else {
+        my @lines = <STDIN>;
+        my $line = join('', @lines);
+        $line = $line;
+        foreach my $p (@pipes) {
+            $line = $p->($line);
+        }
+        print $line;
+    }
+
+EOF
