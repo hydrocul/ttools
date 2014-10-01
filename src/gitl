@@ -6,6 +6,6 @@ if [ $# -gt 0 ]; then
 
 else
 
-    git log --graph --date-order --branches --tags --remotes --pretty=format:"%Cblue%d %Cgreen%ai %Cblue%ae %Cgreen%h %Creset%s"
+    git log --graph --date-order --branches --tags --remotes HEAD --pretty=format:"%Cblue%d %Cgreen%ai %Cblue%ae %Cgreen%h %Creset%s"
 
 fi
