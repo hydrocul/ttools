@@ -1,7 +1,77 @@
 #!/bin/sh
 exec ttr "$0" -- "$@"
 
-perl $WORKING_DIR/main.pl "$@"
+if [ "$#" -eq 0 ]; then
+    cat > $WORKING_DIR/input.txt
+
+    if grep -E '(%[0-9a-fA-F][0-9a-fA-F]%[0-9a-fA-F][0-9a-fA-F]|^%[0-9a-fA-F][0-9a-fA-F]$)' $WORKING_DIR/input.txt >/dev/null; then
+        env echo -e '\e[34murl-decode\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line url-decode
+        exit
+    fi
+
+    if :; then
+        env echo -e '\e[34murl-encode\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line url-encode
+    fi
+
+    if grep '%[0-9a-fA-F][0-9a-fA-F]' $WORKING_DIR/input.txt >/dev/null; then
+        env echo -e '\e[34murl-decode\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line url-decode
+    fi
+
+    if :; then
+        env echo -e '\e[34mbase64-encode\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line base64-encode
+    fi
+
+    if ! grep '[^0-9a-zA-Z+/=\n]' $WORKING_DIR/input.txt >/dev/null; then
+        env echo -e '\e[34mbase64-decode\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line base64-decode
+    fi
+
+    if :; then
+        env echo -e '\e[34municode-escape\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line unicode-escape
+    fi
+
+    if grep '\\u' $WORKING_DIR/input.txt >/dev/null; then
+        env echo -e '\e[34municode-unescape\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line unicode-unescape
+    fi
+
+    if :; then
+        env echo -e '\e[34municode-dump\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line unicode-dump
+    fi
+
+    if :; then
+        env echo -e '\e[34mhex-dump\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line hex-dump
+    fi
+
+    if :; then
+        env echo -e '\e[34mnfkc (互換合成)\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfkc
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfkc unicode-dump
+        env echo -e '\e[34mnfkd (互換分解)\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfkd
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfkd unicode-dump
+        env echo -e '\e[34mnfc (正規合成)\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfc
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfc unicode-dump
+        env echo -e '\e[34mnfd (正規分解)\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfd
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfd unicode-dump
+    fi
+
+    if :; then
+        env echo -e '\e[34mcharname\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line charname
+    fi
+else
+    perl $WORKING_DIR/main.pl "$@"
+fi
 
 ##file help.txt <<EOF
 
@@ -47,17 +117,20 @@ perl $WORKING_DIR/main.pl "$@"
       utf16-decode
               alias to utf-16-be-char-decode-perl
 
-      hex-encode
+      unicode-dump
 
-      hex-long-encode
+      hex-dump
 
-      hex-decode
+      hex-undump
 
-      bin-encode
+      bin-dump
 
-      bin-long-encode
+      bin-undump
 
-      bin-decode
+      nfkc
+      nfkd
+      nfc
+      nfd
 
     encoding:
       utf8
@@ -74,11 +147,13 @@ EOF
     use warnings;
     use utf8;
 
-    use Encode qw/decode encode/;
+    use Encode qw/decode encode decode_utf8 encode_utf8/;
     use MIME::Base64 qw/encode_base64 decode_base64/;
-    use Unicode::Normalize;
+    use Unicode::Normalize qw/NFKC NFKD NFC NFD/;
 
-    use IPC::Open2;
+    use IPC::Open2 qw/open2/;
+
+    my $default_encoding = 'utf-8';
 
     sub pipe_perl_char_encode {
         my ($charset) = @_;
@@ -102,7 +177,7 @@ EOF
         (sub {
             my ($line) = @_;
             my $result = $line;
-            $result =~ s/([^ 0-9a-fA-F])/"%".uc(unpack("H2",$1))/eg;
+            $result =~ s/([^ 0-9a-zA-Z])/"%".uc(unpack("H2",$1))/eg;
             $result =~ s/ /+/g;
             $result;
         }, 'bin', 'str', "url-encode");
@@ -114,6 +189,7 @@ EOF
             my $result = $line;
             $result =~ s/\+/ /g;
             $result =~ s/%([0-9a-fA-F]{2})/pack("H2",$1)/eg;
+            $result = encode("iso-8859-1", $result);
             $result;
         }, 'str', 'bin', "url-decode");
     }
@@ -142,7 +218,7 @@ EOF
         }, 'str', 'bin', "base64-decode");
     }
 
-    sub pipe_unicode_encode {
+    sub pipe_unicode_escape {
         my $p1 = sub {
             my ($y) = @_;
             '\\' x (length($y) * 2) . 'u';
@@ -153,17 +229,23 @@ EOF
             if ($c <= 0x7E) {
                 return $ch;
             }
-            sprintf("\\u%04x", $c);
+            if ($c >= 0x10000) {
+                my $c1 = ($c - 0x10000) / 0x400 + 0xD800;
+                my $c2 = ($c - 0x10000) % 0x400 + 0xDC00;
+                sprintf("\\u%04x\\u%04x", $c1, $c2);
+            } else {
+                sprintf("\\u%04x", $c);
+            }
         };
         (sub {
             my ($line) = @_;
             $line =~ s/(\\+)u/$p1->($1)/eg;
             $line =~ s/(.)/$p2->($1)/eg;
             $line;
-         }, 'str', 'str', "unicode-encode");
+         }, 'str', 'str', "unicode-escape");
     }
 
-    sub pipe_unicode_decode {
+    sub pipe_unicode_unescape {
         my $p1 = sub {
             my ($y, $hex) = @_;
             my $len = length($y);
@@ -173,14 +255,33 @@ EOF
                 return '\\' x (($len - 1) / 2) . chr(hex($hex));
             }
         };
+        my $p2 = sub {
+            my ($ch1, $ch2) = @_;
+            my $c = (ord($ch1) - 0xD800) * 0x400 + (ord($ch2) - 0xDC00) + 0x10000;
+            chr($c);
+        };
         (sub {
             my ($line) = @_;
             $line =~ s/(\\+)u+([0-9a-fA-F]{4})/$p1->($1, $2)/eg;
+            $line =~ s/([\x{D800}-\x{DBFF}])([\x{DC00}-\x{DFFF}])/$p2->($1, $2)/eg;
             $line;
-         }, 'str', 'str', "unicode-decode");
+         }, 'str', 'str', "unicode-unescape");
     }
 
-    sub pipe_hex_encode {
+    sub pipe_unicode_dump {
+        my $p = sub {
+            my ($ch) = @_;
+            my $c = ord($ch);
+            sprintf("%04X ", $c);
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/([^\n])/$p->($1)/eg;
+            $line;
+         }, 'str', 'str', "unicode-dump");
+    }
+
+    sub pipe_hex_dump {
         my $p = sub {
             my ($ch) = @_;
             my $c = ord($ch);
@@ -190,23 +291,10 @@ EOF
             my ($line) = @_;
             $line =~ s/([^\n])/$p->($1)/eg;
             $line;
-         }, 'bin', 'str', "hex-encode");
+         }, 'bin', 'str', "hex-dump");
     }
 
-    sub pipe_hex_long_encode {
-        my $p = sub {
-            my ($ch) = @_;
-            my $c = ord($ch);
-            sprintf("%02X ", $c);
-        };
-        (sub {
-            my ($line) = @_;
-            $line =~ s/(.)/$p->($1)/eg;
-            $line;
-         }, 'bin', 'str', "hex-long-encode");
-    }
-
-    sub pipe_hex_decode {
+    sub pipe_hex_undump {
         my $p = sub {
             my ($ch) = @_;
             pack("H2", $ch);
@@ -214,11 +302,12 @@ EOF
         (sub {
             my ($line) = @_;
             $line =~ s/([0-9a-fA-F]{2})\s*/$p->($1)/eg;
+            $line = encode("iso-8859-1", $line);
             $line;
-         }, 'str', 'bin', "hex-decode");
+         }, 'str', 'bin', "hex-undump");
     }
 
-    sub pipe_bin_encode {
+    sub pipe_bin_dump {
         my $p = sub {
             my ($ch) = @_;
             my $c = ord($ch);
@@ -228,23 +317,10 @@ EOF
             my ($line) = @_;
             $line =~ s/([^\n])/$p->($1)/eg;
             $line;
-         }, 'bin', 'str', "bin-encode");
+         }, 'bin', 'str', "bin-dump");
     }
 
-    sub pipe_bin_long_encode {
-        my $p = sub {
-            my ($ch) = @_;
-            my $c = ord($ch);
-            sprintf("%08B ", $c);
-        };
-        (sub {
-            my ($line) = @_;
-            $line =~ s/(.)/$p->($1)/eg;
-            $line;
-         }, 'bin', 'str', "bin-long-encode");
-    }
-
-    sub pipe_bin_decode {
+    sub pipe_bin_undump {
         my $p = sub {
             my ($ch) = @_;
             pack("B8", $ch);
@@ -252,8 +328,64 @@ EOF
         (sub {
             my ($line) = @_;
             $line =~ s/([01]{8})\s*/$p->($1)/eg;
+            $line = encode("iso-8859-1", $line);
             $line;
-         }, 'str', 'bin', "bin-decode");
+         }, 'str', 'bin', "bin-undump");
+    }
+
+    sub pipe_nfkc {
+        (sub {
+            my ($line) = @_;
+            NFKC($line);
+         }, 'str', 'str', "nfkc");
+    }
+
+    sub pipe_nfkd {
+        (sub {
+            my ($line) = @_;
+            NFKD($line);
+         }, 'str', 'str', "nfkd");
+    }
+
+    sub pipe_nfc {
+        (sub {
+            my ($line) = @_;
+            NFC($line);
+         }, 'str', 'str', "nfc");
+    }
+
+    sub pipe_nfd {
+        (sub {
+            my ($line) = @_;
+            NFD($line);
+         }, 'str', 'str', "nfd");
+    }
+
+    my $python_pid = '';
+
+    sub start_python {
+        unless ($python_pid) {
+            $python_pid = open2(*PY_READ, *PY_WRITE, "python3 -u $ENV{WORKING_DIR}/sub.py");
+        }
+    }
+
+    sub end_python {
+        if ($python_pid) {
+            close(PY_WRITE);
+            close(PY_READ);
+        }
+    }
+
+    sub pipe_charname {
+        start_python();
+        (sub {
+            my ($line) = @_;
+            $line = encode_utf8($line);
+            print PY_WRITE "u$line\n";
+            my $result = <PY_READ>;
+            $result = decode_utf8($result);
+            $result;
+        }, 'str', 'str', "charname");
     }
 
     my $is_help = '';
@@ -261,7 +393,6 @@ EOF
     my $is_verbose = 1;
     my @pipesInfo = ();
     my @lines = ();
-    my $default_encoding = 'utf-8';
 
     while () {
         last if (@ARGV == 0);
@@ -291,9 +422,9 @@ EOF
             @pipeInfo = pipe_base64_decode;
 
         } elsif ($a eq 'unicode-encode' || $a eq 'unicode-escape') {
-            @pipeInfo = pipe_unicode_encode();
+            @pipeInfo = pipe_unicode_escape();
         } elsif ($a eq 'unicode-decode' || $a eq 'unicode-unescape') {
-            @pipeInfo = pipe_unicode_decode();
+            @pipeInfo = pipe_unicode_unescape();
 
         } elsif ($a =~ /\A(.+)-char-encode\Z/) {
             @pipeInfo = pipe_perl_char_encode($1);
@@ -315,19 +446,30 @@ EOF
         } elsif ($a eq 'utf16-decode') {
             @pipeInfo = pipe_perl_char_decode('utf-16-be');
 
-        } elsif ($a eq 'hex-encode') {
-            @pipeInfo = pipe_hex_encode();
-        } elsif ($a eq 'hex-long-encode') {
-            @pipeInfo = pipe_hex_long_encode();
-        } elsif ($a eq 'hex-decode') {
-            @pipeInfo = pipe_hex_decode();
+        } elsif ($a eq 'unicode-dump') {
+            @pipeInfo = pipe_unicode_dump();
 
-        } elsif ($a eq 'bin-encode') {
-            @pipeInfo = pipe_bin_encode();
-        } elsif ($a eq 'bin-long-encode') {
-            @pipeInfo = pipe_bin_long_encode();
-        } elsif ($a eq 'bin-decode') {
-            @pipeInfo = pipe_bin_decode();
+        } elsif ($a eq 'hex-dump') {
+            @pipeInfo = pipe_hex_dump();
+        } elsif ($a eq 'hex-undump') {
+            @pipeInfo = pipe_hex_undump();
+
+        } elsif ($a eq 'bin-dump') {
+            @pipeInfo = pipe_bin_dump();
+        } elsif ($a eq 'bin-undump') {
+            @pipeInfo = pipe_bin_undump();
+
+        } elsif ($a eq 'nfkc') {
+            @pipeInfo = pipe_nfkc();
+        } elsif ($a eq 'nfkd') {
+            @pipeInfo = pipe_nfkd();
+        } elsif ($a eq 'nfc') {
+            @pipeInfo = pipe_nfc();
+        } elsif ($a eq 'nfd') {
+            @pipeInfo = pipe_nfd();
+
+        } elsif ($a eq 'charname') {
+            @pipeInfo = pipe_charname();
 
         } else {
             die "Illegal command: $a\n";
@@ -347,7 +489,7 @@ EOF
     }
 
     sub createPipes {
-        print "BIN" if ($is_verbose);
+        print "\x1b[34mBIN" if ($is_verbose);
         my @pipes = ();
         my $prev_type = 'bin';
         foreach my $p (@pipesInfo) {
@@ -377,7 +519,7 @@ EOF
             push(@pipes, $p);
             print " =[$default_encoding-char-encode]=> BIN" if ($is_verbose);
         }
-        print "\n";
+        print "\x1b[0m\n" if ($is_verbose);
         @pipes;
     }
 
@@ -393,7 +535,9 @@ EOF
         }
     } elsif ($is_each_line) {
         while (my $line = <STDIN>) {
-            my $exists_lf = '';
+            #my $exists_lf = '';
+            my $exists_lf = 1;
+            my $exists_lf2 = '';
             if ($line =~ /\A(.*)\n\Z/) {
                 $line = $1;
                 $exists_lf = 1;
@@ -401,8 +545,11 @@ EOF
             foreach my $p (@pipes) {
                 $line = $p->($line);
             }
+            if ($line =~ /\A(.*)\n\Z/) {
+                $exists_lf2 = 1;
+            }
             print $line;
-            if ($exists_lf) {
+            if ($exists_lf && !$exists_lf2) {
                 print "\n";
             }
         }
@@ -416,4 +563,24 @@ EOF
         print $line;
     }
 
+    end_python();
+
 EOF
+
+##file sub.py <<EOF
+
+    import sys
+    import unicodedata
+
+    for line in sys.stdin:
+        op = line[0]
+        if op == 'u':
+            result = ""
+            for ch in line[1:-1]:
+                result = result + "{" + ("%04X" % ord(ch)) + "/" + unicodedata.name(ch) + "}"
+            sys.stdout.write(result + "\n")
+        else:
+            sys.stdout.write("ERROR\n")
+
+EOF
+
