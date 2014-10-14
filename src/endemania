@@ -577,7 +577,10 @@ EOF
         if op == 'u':
             result = ""
             for ch in line[1:-1]:
-                result = result + "{" + ("%04X" % ord(ch)) + "/" + unicodedata.name(ch) + "}"
+                try:
+                    result = result + "{" + ("%04X" % ord(ch)) + "/" + unicodedata.name(ch) + "}"
+                except:
+                    result = result + "{" + ("%04X" % ord(ch)) + "}"
             sys.stdout.write(result + "\n")
         else:
             sys.stdout.write("ERROR\n")
