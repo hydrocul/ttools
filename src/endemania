@@ -132,6 +132,16 @@ fi
       nfc
       nfd
 
+      charname
+
+      idna-encode
+      idna-decode
+
+      python-unicode-escape
+      python-unicode-unescape
+      python-raw-unicode-escape
+      python-raw-unicode-unescape
+
     encoding:
       utf8
       utf16
@@ -376,16 +386,45 @@ EOF
         }
     }
 
-    sub pipe_charname {
+    sub pipe_python {
+        my ($op, $name) = @_;
         start_python();
         (sub {
             my ($line) = @_;
             $line = encode_utf8($line);
-            print PY_WRITE "u$line\n";
+            print PY_WRITE "$op$line\n";
             my $result = <PY_READ>;
             $result = decode_utf8($result);
             $result;
-        }, 'str', 'str', "charname");
+        }, 'str', 'str', $name);
+    }
+
+    sub pipe_charname {
+        pipe_python("u", "charname");
+    }
+
+    sub pipe_idna_encode {
+        pipe_python("d", "idna-encode");
+    }
+
+    sub pipe_idna_decode {
+        pipe_python("D", "idna-decode");
+    }
+
+    sub pipe_python_unicode_escape {
+        pipe_python("s", "python-unicode-escape");
+    }
+
+    sub pipe_python_unicode_unescape {
+        pipe_python("S", "python-unicode-unescape");
+    }
+
+    sub pipe_python_raw_unicode_escape {
+        pipe_python("r", "python-raw-unicode-escape");
+    }
+
+    sub pipe_python_raw_unicode_unescape {
+        pipe_python("R", "python-raw-unicode-unescape");
     }
 
     my $is_help = '';
@@ -470,6 +509,20 @@ EOF
 
         } elsif ($a eq 'charname') {
             @pipeInfo = pipe_charname();
+
+        } elsif ($a eq 'idna-encode') {
+            @pipeInfo = pipe_idna_encode();
+        } elsif ($a eq 'idna-decode') {
+            @pipeInfo = pipe_idna_decode();
+
+        } elsif ($a eq 'python-unicode-escape') {
+            @pipeInfo = pipe_python_unicode_escape();
+        } elsif ($a eq 'python-unicode-unescape') {
+            @pipeInfo = pipe_python_unicode_unescape();
+        } elsif ($a eq 'python-raw-unicode-escape') {
+            @pipeInfo = pipe_python_raw_unicode_escape();
+        } elsif ($a eq 'python-raw-unicode-unescape') {
+            @pipeInfo = pipe_python_raw_unicode_unescape();
 
         } else {
             die "Illegal command: $a\n";
@@ -574,13 +627,31 @@ EOF
 
     for line in sys.stdin:
         op = line[0]
-        if op == 'u':
-            result = ""
-            for ch in line[1:-1]:
-                result = result + "{" + ("%04X" % ord(ch)) + "/" + unicodedata.name(ch) + "}"
-            sys.stdout.write(result + "\n")
-        else:
-            sys.stdout.write("ERROR\n")
+        line = line[1:-1]
+        try:
+            if op == 'u':
+                result = ""
+                for ch in line:
+                    result = result + "{" + ("%04X" % ord(ch)) + "/" + unicodedata.name(ch) + "}"
+                sys.stdout.write(result)
+            elif op == 'd':
+                sys.stdout.write(line.encode("idna").decode("utf-8"))
+            elif op == 'D':
+                sys.stdout.write(line.encode("utf-8").decode("idna"))
+            elif op == 's':
+                sys.stdout.write(line.encode("unicode_escape").decode("utf-8"))
+            elif op == 'S':
+                sys.stdout.write(line.encode("utf-8").decode("unicode_escape"))
+            elif op == 'r':
+                sys.stdout.write(line.encode("raw_unicode_escape").decode("utf-8"))
+            elif op == 'R':
+                sys.stdout.write(line.encode("utf-8").decode("raw_unicode_escape"))
+            else:
+                sys.stdout.write("ERROR")
+        except:
+            raise
+            #pass
+        sys.stdout.write("\n")
 
 EOF
 
