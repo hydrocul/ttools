@@ -52,6 +52,7 @@ unless (defined($target)) {
 }
 
 $target = Cwd::realpath($target);
+die unless (defined($target));
 
 my $mac_target;
 unless ($target =~ ('\A' . quotemeta($mac_mount) . '(' . quotemeta($mac_home) . '\/.+)\z')) {
