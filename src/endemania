@@ -118,13 +118,14 @@ fi
               alias to utf-16-be-char-decode-perl
 
       unicode-dump
+      unicode-undump
 
       hex-dump
-
       hex-undump
 
-      bin-dump
+      dec-dump
 
+      bin-dump
       bin-undump
 
       nfkc
@@ -291,6 +292,19 @@ EOF
          }, 'str', 'str', "unicode-dump");
     }
 
+    sub pipe_unicode_undump {
+        my $p = sub {
+            my ($ch) = @_;
+            chr(hex($ch));
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/([0-9a-fA-F]{2,5})\s*/$p->($1)/eg;
+#            $line = encode("iso-8859-1", $line);
+            $line;
+         }, 'str', 'str', "unicode-undump");
+    }
+
     sub pipe_hex_dump {
         my $p = sub {
             my ($ch) = @_;
@@ -315,6 +329,19 @@ EOF
             $line = encode("iso-8859-1", $line);
             $line;
          }, 'str', 'bin', "hex-undump");
+    }
+
+    sub pipe_dec_dump {
+        my $p = sub {
+            my ($ch) = @_;
+            my $c = ord($ch);
+            sprintf("%d ", $c);
+        };
+        (sub {
+            my ($line) = @_;
+            $line =~ s/([^\n])/$p->($1)/eg;
+            $line;
+         }, 'bin', 'str', "dec-dump");
     }
 
     sub pipe_bin_dump {
@@ -487,11 +514,15 @@ EOF
 
         } elsif ($a eq 'unicode-dump') {
             @pipeInfo = pipe_unicode_dump();
+        } elsif ($a eq 'unicode-undump') {
+            @pipeInfo = pipe_unicode_undump();
 
         } elsif ($a eq 'hex-dump') {
             @pipeInfo = pipe_hex_dump();
         } elsif ($a eq 'hex-undump') {
             @pipeInfo = pipe_hex_undump();
+        } elsif ($a eq 'dec-dump') {
+            @pipeInfo = pipe_dec_dump();
 
         } elsif ($a eq 'bin-dump') {
             @pipeInfo = pipe_bin_dump();
