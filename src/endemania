@@ -74,7 +74,6 @@ else
 fi
 
 ##file help.txt <<EOF
-
     Usage: endemania [options] [commands]
 
     option:
@@ -564,7 +563,9 @@ EOF
     }
 
     sub help {
-        print STDERR "help";
+        open(IN, '<', $ENV{'WORKING_DIR'} . '/help.txt') or die "Cannot open";
+        print while <IN>;
+        close IN;
     }
 
     if ($is_help) {
