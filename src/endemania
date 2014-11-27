@@ -6,68 +6,83 @@ if [ "$#" -eq 0 ]; then
 
     if grep -E '(%[0-9a-fA-F][0-9a-fA-F]%[0-9a-fA-F][0-9a-fA-F]|^%[0-9a-fA-F][0-9a-fA-F]$)' $WORKING_DIR/input.txt >/dev/null; then
         env echo -e '\e[34murl-decode\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line url-decode
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l url-decode
         exit
     fi
 
     if :; then
+        env echo -e '\e[34mhex-dump\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l hex-dump
+    fi
+
+    if :; then
+        env echo -e '\e[34mshiftjis-char-encode hex-dump\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l shiftjis-char-encode hex-dump
+    fi
+
+    if :; then
+        env echo -e '\e[34meuc-jp-char-encode hex-dump\e[0m'
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l euc-jp-char-encode hex-dump
+    fi
+
+    if :; then
         env echo -e '\e[34murl-encode\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line url-encode
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l url-encode
     fi
 
     if grep '%[0-9a-fA-F][0-9a-fA-F]' $WORKING_DIR/input.txt >/dev/null; then
         env echo -e '\e[34murl-decode\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line url-decode
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l url-decode
     fi
 
     if :; then
         env echo -e '\e[34mbase64-encode\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line base64-encode
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l base64-encode
     fi
 
     if ! grep '[^0-9a-zA-Z+/=\n]' $WORKING_DIR/input.txt >/dev/null; then
         env echo -e '\e[34mbase64-decode\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line base64-decode
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l base64-decode
     fi
 
     if :; then
         env echo -e '\e[34municode-escape\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line unicode-escape
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l unicode-escape
     fi
 
     if grep '\\u' $WORKING_DIR/input.txt >/dev/null; then
         env echo -e '\e[34municode-unescape\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line unicode-unescape
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l unicode-unescape
     fi
 
     if :; then
         env echo -e '\e[34municode-dump\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line unicode-dump
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l unicode-dump
     fi
 
     if :; then
         env echo -e '\e[34mhex-dump\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line hex-dump
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l hex-dump
     fi
 
     if :; then
         env echo -e '\e[34mnfkc (互換合成)\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfkc
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfkc unicode-dump
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l nfkc
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l nfkc unicode-dump
         env echo -e '\e[34mnfkd (互換分解)\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfkd
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfkd unicode-dump
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l nfkd
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l nfkd unicode-dump
         env echo -e '\e[34mnfc (正規合成)\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfc
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfc unicode-dump
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l nfc
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l nfc unicode-dump
         env echo -e '\e[34mnfd (正規分解)\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfd
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line nfd unicode-dump
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l nfd
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l nfd unicode-dump
     fi
 
     if :; then
         env echo -e '\e[34mcharname\e[0m'
-        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q --each-line charname
+        cat $WORKING_DIR/input.txt | perl $WORKING_DIR/main.pl -q -l charname
     fi
 else
     perl $WORKING_DIR/main.pl "$@"
@@ -78,7 +93,7 @@ fi
 
     option:
       --help
-      --each-line
+      -l | --each-line
       -s string
       -q
 
@@ -97,12 +112,14 @@ fi
       base64-decode
 
       unicode-encode | unicode-escape
-
       unicode-decode | unicode-unescape
 
       *-char-encode | *-char-encode-perl
-
       *-char-decode | *-char-decode-perl
+      (sjis, cp932, eucjp, iso-2022-jp, iso-8859-1, utf7, utf8, utf16, utf16be, utf16le)
+
+      mb-convert-encoding-*-to-* | mb-convert-encoding-*-to-*-php
+      (sjis, sjis-win, sjis-mac, cp932, sjis-2004, eucjp, eucjp-win, eucjp-2004, iso-2022-jp, iso-8859-1, utf7, utf8, utf16, utf-16be, utf-16le)
 
       utf8-encode
               alias to utf-8-char-encode-perl
@@ -134,20 +151,17 @@ fi
 
       charname
 
-      idna-encode
-      idna-decode
+      idna-encode-python
+      idna-decode-python
 
-      python-unicode-escape
-      python-unicode-unescape
-      python-raw-unicode-escape
-      python-raw-unicode-unescape
+      unicode-escape-python
+      unicode-unescape-python
+      raw-unicode-escape-python
+      raw-unicode-unescape-python
 
-    encoding:
-      utf8
-      utf16
-      iso-8859-1
-      sjis
-      eucjp
+      lower-python
+      title-python
+      upper-python
 
 EOF
 
@@ -163,7 +177,52 @@ EOF
 
     use IPC::Open2 qw/open2/;
 
-    my $default_encoding = 'utf-8';
+    my $default_encoding = 'utf8';
+
+    my $python_pid = '';
+
+    sub start_python {
+        unless ($python_pid) {
+            $ENV{"LANG"} = "en_US.UTF-8";
+            $python_pid = open2(*PY_READ, *PY_WRITE, "python3 -u $ENV{WORKING_DIR}/sub.py");
+        }
+    }
+
+    sub end_python {
+        if ($python_pid) {
+            close(PY_WRITE);
+            close(PY_READ);
+        }
+    }
+
+    sub pipe_python {
+        my ($op, $name) = @_;
+        start_python();
+        (sub {
+            my ($line) = @_;
+            $line = encode_utf8($line);
+            print PY_WRITE "$op$line\n";
+            my $result = <PY_READ>;
+            $result = decode_utf8($result);
+            $result;
+        }, 'str', 'str', $name);
+    }
+
+    my $php_pid = '';
+
+    sub start_php {
+        unless ($php_pid) {
+            $ENV{"LANG"} = "en_US.UTF-8";
+            $php_pid = open2(*PHP_READ, *PHP_WRITE, "php $ENV{WORKING_DIR}/sub.php");
+        }
+    }
+
+    sub end_php {
+        if ($php_pid) {
+            close(PHP_WRITE);
+            close(PHP_READ);
+        }
+    }
 
     sub pipe_perl_char_encode {
         my ($charset) = @_;
@@ -171,7 +230,7 @@ EOF
             my ($line) = @_;
             my $result = encode($charset, $line);
             $result;
-        }, 'str', 'bin', "charset-char-encode-perl");
+        }, 'str', 'bin', "$charset-char-encode-perl");
     }
 
     sub pipe_perl_char_decode {
@@ -180,7 +239,18 @@ EOF
             my ($line) = @_;
             my $result = decode($charset, $line);
             $result;
-        }, 'bin', 'str', "charset-char-decode-perl");
+        }, 'bin', 'str', "$charset-char-decode-perl");
+    }
+
+    sub pipe_php_mb_convert_encoding {
+        my ($src, $dst) = @_;
+        start_php();
+        (sub {
+            my ($line) = @_;
+            print PHP_WRITE "mb-convert-encoding $src $dst $line\n";
+            my $result = <PHP_READ>;
+            $result;
+        }, 'bin', 'bin', "convert-encoding-$src-to-$dst-php");
     }
 
     sub pipe_url_encode {
@@ -397,60 +467,44 @@ EOF
          }, 'str', 'str', "nfd");
     }
 
-    my $python_pid = '';
-
-    sub start_python {
-        unless ($python_pid) {
-            $python_pid = open2(*PY_READ, *PY_WRITE, "python3 -u $ENV{WORKING_DIR}/sub.py");
-        }
-    }
-
-    sub end_python {
-        if ($python_pid) {
-            close(PY_WRITE);
-            close(PY_READ);
-        }
-    }
-
-    sub pipe_python {
-        my ($op, $name) = @_;
-        start_python();
-        (sub {
-            my ($line) = @_;
-            $line = encode_utf8($line);
-            print PY_WRITE "$op$line\n";
-            my $result = <PY_READ>;
-            $result = decode_utf8($result);
-            $result;
-        }, 'str', 'str', $name);
-    }
-
     sub pipe_charname {
-        pipe_python("u", "charname");
+        pipe_python("n", "charname");
     }
 
-    sub pipe_idna_encode {
-        pipe_python("d", "idna-encode");
+    sub pipe_python_idna_encode {
+        pipe_python("d", "idna-encode-python");
     }
 
-    sub pipe_idna_decode {
-        pipe_python("D", "idna-decode");
+    sub pipe_python_idna_decode {
+        pipe_python("D", "idna-decode-python");
     }
 
     sub pipe_python_unicode_escape {
-        pipe_python("s", "python-unicode-escape");
+        pipe_python("s", "unicode-escape-python");
     }
 
     sub pipe_python_unicode_unescape {
-        pipe_python("S", "python-unicode-unescape");
+        pipe_python("S", "unicode-unescape-python");
     }
 
     sub pipe_python_raw_unicode_escape {
-        pipe_python("r", "python-raw-unicode-escape");
+        pipe_python("r", "raw-unicode-escape-python");
     }
 
     sub pipe_python_raw_unicode_unescape {
-        pipe_python("R", "python-raw-unicode-unescape");
+        pipe_python("R", "raw-unicode-unescape-python");
+    }
+
+    sub pipe_python_lower {
+        pipe_python("l", "lower-python");
+    }
+
+    sub pipe_python_title {
+        pipe_python("t", "title-python");
+    }
+
+    sub pipe_python_upper {
+        pipe_python("u", "upper-python");
     }
 
     my $is_help = '';
@@ -470,6 +524,8 @@ EOF
         } elsif ($a eq '--help') {
             $is_help = 1;
         } elsif ($a eq '--each-line') {
+            $is_each_line = 1;
+        } elsif ($a eq '-l') {
             $is_each_line = 1;
         } elsif ($a eq '-q') {
             $is_verbose = '';
@@ -501,15 +557,20 @@ EOF
         } elsif ($a =~ /\A(.+)-char-decode-perl\Z/) {
             @pipeInfo = pipe_perl_char_decode($1);
 
+        } elsif ($a =~ /\Amb-convert-encoding-(.+)-to-(.+)\Z/) {
+            @pipeInfo = pipe_php_mb_convert_encoding($1, $2);
+        } elsif ($a =~ /\Amb-convert-encoding-(.+)-to-(.+)-php\Z/) {
+            @pipeInfo = pipe_php_mb_convert_encoding($1, $2);
+
         } elsif ($a eq 'utf8-encode') {
-            @pipeInfo = pipe_perl_char_encode('utf-8');
+            @pipeInfo = pipe_perl_char_encode('utf8');
         } elsif ($a eq 'utf8-decode') {
-            @pipeInfo = pipe_perl_char_decode('utf-8');
+            @pipeInfo = pipe_perl_char_decode('utf8');
 
         } elsif ($a eq 'utf16-encode') {
-            @pipeInfo = pipe_perl_char_encode('utf-16-be');
+            @pipeInfo = pipe_perl_char_encode('utf16be');
         } elsif ($a eq 'utf16-decode') {
-            @pipeInfo = pipe_perl_char_decode('utf-16-be');
+            @pipeInfo = pipe_perl_char_decode('utf16be');
 
         } elsif ($a eq 'unicode-dump') {
             @pipeInfo = pipe_unicode_dump();
@@ -541,18 +602,29 @@ EOF
             @pipeInfo = pipe_charname();
 
         } elsif ($a eq 'idna-encode') {
-            @pipeInfo = pipe_idna_encode();
+            @pipeInfo = pipe_python_idna_encode();
         } elsif ($a eq 'idna-decode') {
-            @pipeInfo = pipe_idna_decode();
+            @pipeInfo = pipe_python_idna_decode();
+        } elsif ($a eq 'idna-encode-python') {
+            @pipeInfo = pipe_python_idna_encode();
+        } elsif ($a eq 'idna-decode-python') {
+            @pipeInfo = pipe_python_idna_decode();
 
-        } elsif ($a eq 'python-unicode-escape') {
+        } elsif ($a eq 'unicode-escape-python') {
             @pipeInfo = pipe_python_unicode_escape();
-        } elsif ($a eq 'python-unicode-unescape') {
+        } elsif ($a eq 'unicode-unescape-python') {
             @pipeInfo = pipe_python_unicode_unescape();
-        } elsif ($a eq 'python-raw-unicode-escape') {
+        } elsif ($a eq 'raw-unicode-escape-python') {
             @pipeInfo = pipe_python_raw_unicode_escape();
-        } elsif ($a eq 'python-raw-unicode-unescape') {
+        } elsif ($a eq 'raw-unicode-unescape-python') {
             @pipeInfo = pipe_python_raw_unicode_unescape();
+
+        } elsif ($a eq 'lower-python') {
+            @pipeInfo = pipe_python_lower();
+        } elsif ($a eq 'title-python') {
+            @pipeInfo = pipe_python_title();
+        } elsif ($a eq 'upper-python') {
+            @pipeInfo = pipe_python_upper();
 
         } else {
             die "Illegal command: $a\n";
@@ -649,6 +721,7 @@ EOF
     }
 
     end_python();
+    end_php();
 
 EOF
 
@@ -656,12 +729,13 @@ EOF
 
     import sys
     import unicodedata
+    import os
 
     for line in sys.stdin:
         op = line[0]
         line = line[1:-1]
         try:
-            if op == 'u':
+            if op == 'n':
                 result = ""
                 for ch in line:
                     try:
@@ -681,12 +755,35 @@ EOF
                 sys.stdout.write(line.encode("raw_unicode_escape").decode("utf-8"))
             elif op == 'R':
                 sys.stdout.write(line.encode("utf-8").decode("raw_unicode_escape"))
+            elif op == 'l':
+                sys.stdout.write(line.lower())
+            elif op == 't':
+                sys.stdout.write(line.title())
+            elif op == 'u':
+                sys.stdout.write(line.upper())
             else:
                 sys.stdout.write("ERROR")
         except:
             raise
             #pass
         sys.stdout.write("\n")
+
+EOF
+
+##file sub.php <<EOF
+    <?php
+
+    $stdin = fopen('php://stdin', 'r');
+
+    while (!feof($stdin)) {
+        $line = trim(fgets($stdin));
+        if (preg_match('/^mb-convert-encoding ([^ ]+) ([^ ]+) (.*)$/', $line, $matches)) {
+            echo mb_convert_encoding($matches[3], $matches[2], $matches[1]);
+        } else {
+            echo "ERROR";
+        }
+        echo "\n";
+    }
 
 EOF
 
