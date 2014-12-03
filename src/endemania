@@ -199,10 +199,18 @@ EOF
         my ($op, $name) = @_;
         start_python();
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             $line = encode_utf8($line);
-            print PY_WRITE "$op$line\n";
+            if ($is_each_line) {
+                print PY_WRITE "$op$line\n";
+            } else {
+                $line = encode_base64($line, '');
+                print PY_WRITE "\$$op$line\n";
+            }
             my $result = <PY_READ>;
+            unless ($is_each_line) {
+                $result = decode_base64($result);
+            }
             $result = decode_utf8($result);
             $result;
         }, 'str', 'str', $name);
@@ -227,14 +235,14 @@ EOF
     sub pipe_perl_char_encode {
         my ($charset) = @_;
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             my $result = encode($charset, $line);
             $result;
         }, 'str', 'bin', "$charset-char-encode-perl");
     }
 
     sub pipe_perl_char_decode {
-        my ($charset) = @_;
+        my ($charset, $is_each_line) = @_;
         (sub {
             my ($line) = @_;
             my $result = decode($charset, $line);
@@ -246,16 +254,24 @@ EOF
         my ($src, $dst) = @_;
         start_php();
         (sub {
-            my ($line) = @_;
-            print PHP_WRITE "mb-convert-encoding $src $dst $line\n";
+            my ($line, $is_each_line) = @_;
+            if ($is_each_line) {
+                print PHP_WRITE "mb-convert-encoding $src $dst $line\n";
+            } else {
+                $line = encode_base64($line, '');
+                print PHP_WRITE "mb-convert-encoding-bin $src $dst $line\n";
+            }
             my $result = <PHP_READ>;
+            unless ($is_each_line) {
+                $result = decode_base64($result);
+            }
             $result;
-        }, 'bin', 'bin', "convert-encoding-$src-to-$dst-php");
+        }, 'bin', 'bin', "mb-convert-encoding-$src-to-$dst-php");
     }
 
     sub pipe_url_encode {
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             my $result = $line;
             $result =~ s/([^ 0-9a-zA-Z])/"%".uc(unpack("H2",$1))/eg;
             $result =~ s/ /+/g;
@@ -265,7 +281,7 @@ EOF
 
     sub pipe_url_decode {
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             my $result = $line;
             $result =~ s/\+/ /g;
             $result =~ s/%([0-9a-fA-F]{2})/pack("H2",$1)/eg;
@@ -276,15 +292,20 @@ EOF
 
     sub pipe_base64_encode {
         (sub {
-            my ($line) = @_;
-            my $result = encode_base64($line);
+            my ($line, $is_each_line) = @_;
+            my $result;
+            if ($is_each_line) {
+                $result = encode_base64($line, '');
+            } else {
+                $result = encode_base64($line);
+            }
             $result;
         }, 'bin', 'str', "base64-encode");
     }
 
     sub pipe_base64_long_encode {
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             my $result = encode_base64($line, '');
             $result;
         }, 'bin', 'str', "base64-long-encode");
@@ -292,8 +313,11 @@ EOF
 
     sub pipe_base64_decode {
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             my $result = decode_base64($line);
+            if ($is_each_line) {
+                $result =~ s/\n/ /g;
+            }
             $result;
         }, 'str', 'bin', "base64-decode");
     }
@@ -306,7 +330,7 @@ EOF
         my $p2 = sub {
             my ($ch) = @_;
             my $c = ord($ch);
-            if ($c <= 0x7E) {
+            if ($c >= 0x20 && $c <= 0x7E) {
                 return $ch;
             }
             if ($c >= 0x10000) {
@@ -318,9 +342,9 @@ EOF
             }
         };
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             $line =~ s/(\\+)u/$p1->($1)/eg;
-            $line =~ s/(.)/$p2->($1)/eg;
+            $line =~ s/(.)/$p2->($1)/egs;
             $line;
          }, 'str', 'str', "unicode-escape");
     }
@@ -341,9 +365,12 @@ EOF
             chr($c);
         };
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             $line =~ s/(\\+)u+([0-9a-fA-F]{4})/$p1->($1, $2)/eg;
             $line =~ s/([\x{D800}-\x{DBFF}])([\x{DC00}-\x{DFFF}])/$p2->($1, $2)/eg;
+            if ($is_each_line) {
+                $line =~ s/\n/ /g;
+            }
             $line;
          }, 'str', 'str', "unicode-unescape");
     }
@@ -355,8 +382,8 @@ EOF
             sprintf("%04X ", $c);
         };
         (sub {
-            my ($line) = @_;
-            $line =~ s/([^\n])/$p->($1)/eg;
+            my ($line, $is_each_line) = @_;
+            $line =~ s/(.)/$p->($1)/egs;
             $line;
          }, 'str', 'str', "unicode-dump");
     }
@@ -367,9 +394,11 @@ EOF
             chr(hex($ch));
         };
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             $line =~ s/([0-9a-fA-F]{2,5})\s*/$p->($1)/eg;
-#            $line = encode("iso-8859-1", $line);
+            if ($is_each_line) {
+                $line =~ s/\n/ /g;
+            }
             $line;
          }, 'str', 'str', "unicode-undump");
     }
@@ -381,8 +410,8 @@ EOF
             sprintf("%02X ", $c);
         };
         (sub {
-            my ($line) = @_;
-            $line =~ s/([^\n])/$p->($1)/eg;
+            my ($line, $is_each_line) = @_;
+            $line =~ s/(.)/$p->($1)/egs;
             $line;
          }, 'bin', 'str', "hex-dump");
     }
@@ -393,9 +422,12 @@ EOF
             pack("H2", $ch);
         };
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             $line =~ s/([0-9a-fA-F]{2})\s*/$p->($1)/eg;
             $line = encode("iso-8859-1", $line);
+            if ($is_each_line) {
+                $line =~ s/\n/ /g;
+            }
             $line;
          }, 'str', 'bin', "hex-undump");
     }
@@ -407,8 +439,8 @@ EOF
             sprintf("%d ", $c);
         };
         (sub {
-            my ($line) = @_;
-            $line =~ s/([^\n])/$p->($1)/eg;
+            my ($line, $is_each_line) = @_;
+            $line =~ s/(.)/$p->($1)/egs;
             $line;
          }, 'bin', 'str', "dec-dump");
     }
@@ -420,8 +452,8 @@ EOF
             sprintf("%08B ", $c);
         };
         (sub {
-            my ($line) = @_;
-            $line =~ s/([^\n])/$p->($1)/eg;
+            my ($line, $is_each_line) = @_;
+            $line =~ s/(.)/$p->($1)/egs;
             $line;
          }, 'bin', 'str', "bin-dump");
     }
@@ -432,37 +464,40 @@ EOF
             pack("B8", $ch);
         };
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             $line =~ s/([01]{8})\s*/$p->($1)/eg;
             $line = encode("iso-8859-1", $line);
+            if ($is_each_line) {
+                $line =~ s/\n/ /g;
+            }
             $line;
          }, 'str', 'bin', "bin-undump");
     }
 
     sub pipe_nfkc {
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             NFKC($line);
          }, 'str', 'str', "nfkc");
     }
 
     sub pipe_nfkd {
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             NFKD($line);
          }, 'str', 'str', "nfkd");
     }
 
     sub pipe_nfc {
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             NFC($line);
          }, 'str', 'str', "nfc");
     }
 
     sub pipe_nfd {
         (sub {
-            my ($line) = @_;
+            my ($line, $is_each_line) = @_;
             NFD($line);
          }, 'str', 'str', "nfd");
     }
@@ -508,7 +543,7 @@ EOF
     }
 
     my $is_help = '';
-    my $is_each_line = '';
+    my $is_each_line = 1;
     my $is_verbose = 1;
     my @pipesInfo = ();
     my @lines = ();
@@ -527,6 +562,8 @@ EOF
             $is_each_line = 1;
         } elsif ($a eq '-l') {
             $is_each_line = 1;
+        } elsif ($a eq '-m') {
+            $is_each_line = '';
         } elsif ($a eq '-q') {
             $is_verbose = '';
 
@@ -700,7 +737,7 @@ EOF
                 $exists_lf = 1;
             }
             foreach my $p (@pipes) {
-                $line = $p->($line);
+                $line = $p->($line, $is_each_line);
             }
             if ($line =~ /\A(.*)\n\Z/) {
                 $exists_lf2 = 1;
@@ -715,7 +752,7 @@ EOF
         my $line = join('', @lines);
         $line = $line;
         foreach my $p (@pipes) {
-            $line = $p->($line);
+            $line = $p->($line, $is_each_line);
         }
         print $line;
     }
@@ -729,11 +766,17 @@ EOF
 
     import sys
     import unicodedata
-    import os
+    import base64
 
     for line in sys.stdin:
         op = line[0]
-        line = line[1:-1]
+        if op == '$':
+            is_each_line = False
+            op = line[1]
+            line = base64.decodestring(line[2:-1].encode("ascii")).decode("utf-8")
+        else:
+            is_each_line = True
+            line = line[1:-1]
         try:
             if op == 'n':
                 result = ""
@@ -742,30 +785,33 @@ EOF
                         result = result + "{" + ("%04X" % ord(ch)) + "/" + unicodedata.name(ch) + "}"
                     except:
                         result = result + "{" + ("%04X" % ord(ch)) + "}"
-                sys.stdout.write(result)
             elif op == 'd':
-                sys.stdout.write(line.encode("idna").decode("utf-8"))
+                result = line.encode("idna").decode("utf-8")
             elif op == 'D':
-                sys.stdout.write(line.encode("utf-8").decode("idna"))
+                result = line.encode("utf-8").decode("idna")
             elif op == 's':
-                sys.stdout.write(line.encode("unicode_escape").decode("utf-8"))
+                result = line.encode("unicode_escape").decode("utf-8")
             elif op == 'S':
-                sys.stdout.write(line.encode("utf-8").decode("unicode_escape"))
+                result = line.encode("utf-8").decode("unicode_escape")
             elif op == 'r':
-                sys.stdout.write(line.encode("raw_unicode_escape").decode("utf-8"))
+                result = line.encode("raw_unicode_escape").decode("utf-8")
             elif op == 'R':
-                sys.stdout.write(line.encode("utf-8").decode("raw_unicode_escape"))
+                result = line.encode("utf-8").decode("raw_unicode_escape")
             elif op == 'l':
-                sys.stdout.write(line.lower())
+                result = line.lower()
             elif op == 't':
-                sys.stdout.write(line.title())
+                result = line.title()
             elif op == 'u':
-                sys.stdout.write(line.upper())
+                result = line.upper()
             else:
-                sys.stdout.write("ERROR")
+                result = "ERROR"
         except:
             raise
             #pass
+        if is_each_line:
+            sys.stdout.write(result)
+        else:
+            sys.stdout.write(base64.encodestring(result.encode("utf-8")).decode("ascii").replace("\n", ""))
         sys.stdout.write("\n")
 
 EOF
@@ -779,6 +825,8 @@ EOF
         $line = trim(fgets($stdin));
         if (preg_match('/^mb-convert-encoding ([^ ]+) ([^ ]+) (.*)$/', $line, $matches)) {
             echo mb_convert_encoding($matches[3], $matches[2], $matches[1]);
+        } else if (preg_match('/^mb-convert-encoding-bin ([^ ]+) ([^ ]+) (.*)$/', $line, $matches)) {
+            echo base64_encode(mb_convert_encoding(base64_decode($matches[3]), $matches[2], $matches[1]));
         } else {
             echo "ERROR";
         }
